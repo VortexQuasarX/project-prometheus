@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      # Mock defaults: local mode works with NO AWS credentials.
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+      VECTOR_STORE_PROVIDER: local
+      CACHE_PROVIDER: local
+      DATABASE_URL: sqlite:////app/data/prometheus.db
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      # Browser calls the API through the host port; the Next rewrite proxies
+      # /api/v1 to this address at runtime.
+      SERVER_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      - api
+    restart: unless-stopped

@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and edit ONLY when you deliberately enable AWS.
+# The safe default is enable_aws = false (no resources, no spend).
+#
+# enable_aws            = true
+# aws_region            = "us-east-1"
+# environment           = "dev"
+# compute_platform      = "lambda"
+# create_nat_gateway    = false
+# enable_vpc_endpoints  = true
+# aurora_min_acus       = 0.5
+# aurora_max_acus       = 2.0

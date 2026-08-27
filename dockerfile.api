@@ -1,0 +1,26 @@
+# Project Prometheus — API image (Python 3.11, non-root, venv)
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Dependencies first for layer caching.
+COPY app/requirements.txt /app/app/requirements.txt
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/venv/bin/pip install --no-cache-dir -r /app/app/requirements.txt
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY app/ /app/app/
+
+# SQLite lives in /app/data (mounted volume in compose).
+RUN mkdir -p /app/data \
+    && useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,172 @@
+"""HTTP middleware: request context (X-Request-Id + timing) and sliding-window
+rate limiting per API key.
+
+Rate limiting is in-memory and single-process by design (documented in
+docs/ARCHITECTURE.md): the MVP runs one uvicorn worker. Multi-worker-safe
+parts (SQLite state, SSE outbox) are unaffected.
+"""
+
+from __future__ import annotations
+
+import math
+import threading
+import time
+import uuid
+from collections import deque
+from typing import Any
+
+from starlette.datastructures import MutableHeaders
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+
+from app.core.config import settings
+from app.core.errors import error_response
+from app.core.security import hash_api_key
+
+
+def _scope_headers(scope: dict[str, Any]) -> dict[str, str]:
+    return {
+        key.decode("latin-1").lower(): value.decode("latin-1")
+        for key, value in (scope.get("headers") or [])
+    }
+
+
+class RequestContextMiddleware:
+    """Pure-ASGI middleware: injects ``X-Request-Id`` (uuid4 hex) when absent,
+    records timing in ``scope["state"]``, and stamps every response header.
+
+    Implemented as raw ASGI (not BaseHTTPMiddleware) so streaming responses
+    such as the SSE endpoint are never buffered.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = _scope_headers(scope)
+        request_id = headers.get("x-request-id") or uuid.uuid4().hex
+        state = scope.setdefault("state", {})
+        state["request_id"] = request_id
+        start = time.perf_counter()
+
+        async def send_wrapper(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                response_headers = MutableHeaders(scope=message)
+                response_headers.setdefault("X-Request-Id", request_id)
+                response_headers.setdefault(
+                    "X-Process-Time-Ms", f"{(time.perf_counter() - start) * 1000:.1f}"
+                )
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+class _SlidingWindowStore:
+    """Per-key sliding window of request timestamps (last 60s). Single-process only."""
+
+    def __init__(self) -> None:
+        self._windows: dict[str, deque[float]] = {}
+        self._lock = threading.Lock()
+
+    def check(self, key: str, limit: int, now: float | None = None) -> tuple[bool, float]:
+        """Record one request; return (allowed, retry_after_seconds)."""
+        now = now if now is not None else time.time()
+        with self._lock:
+            window = self._windows.setdefault(key, deque())
+            while window and window[0] <= now - 60.0:
+                window.popleft()
+            if len(window) >= limit:
+                retry_after = max(0.0, 60.0 - (now - window[0])) if window else 0.0
+                return False, retry_after
+            window.append(now)
+            return True, 0.0
+
+    def remaining(self, key: str, limit: int, now: float | None = None) -> int:
+        now = now if now is not None else time.time()
+        with self._lock:
+            window = self._windows.get(key)
+            if not window:
+                return limit
+            while window and window[0] <= now - 60.0:
+                window.popleft()
+            return max(0, limit - len(window))
+
+
+class RateLimitMiddleware:
+    """Sliding-window rate limit per API key (default 30/min from settings).
+
+    Exempt: OPTIONS preflight, ``GET /api/v1/health``, the SSE stream endpoint
+    (long-polling), and requests without an ``X-API-Key`` header (public routes).
+    """
+
+    def __init__(self, app: Any, limit_per_minute: int | None = None) -> None:
+        self.app = app
+        self.limit_per_minute = limit_per_minute or settings.rate_limit_per_minute
+        self._store = _SlidingWindowStore()
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = _scope_headers(scope)
+        api_key = headers.get("x-api-key")
+        path = scope.get("path", "")
+        method = scope.get("method", "GET")
+        if method == "OPTIONS" or not api_key or path == "/api/v1/health" or path.endswith("/events/stream"):
+            await self.app(scope, receive, send)
+            return
+
+        now = time.time()
+        key_hash = hash_api_key(api_key)
+        allowed, retry_after = self._store.check(key_hash, self.limit_per_minute, now)
+        remaining = self._store.remaining(key_hash, self.limit_per_minute, now)
+        if not allowed:
+            request_id = scope.get("state", {}).get("request_id") or uuid.uuid4().hex
+            payload = error_response(
+                request_id,
+                "rate_limit_exceeded",
+                "Rate limit exceeded",
+                {"retry_after_seconds": round(retry_after, 2)},
+            )
+            response = JSONResponse(
+                status_code=429,
+                content=payload,
+                headers={
+                    "Retry-After": str(int(math.ceil(retry_after))),
+                    "X-Request-Id": request_id,
+                    "X-RateLimit-Limit": str(self.limit_per_minute),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+            await response(scope, receive, send)
+            return
+
+        async def send_wrapper(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                response_headers = MutableHeaders(scope=message)
+                response_headers.setdefault("X-RateLimit-Limit", str(self.limit_per_minute))
+                response_headers.setdefault("X-RateLimit-Remaining", str(remaining))
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+def setup_middleware(app: Any) -> None:
+    """Register CORS, rate limiting, and request-context middleware.
+
+    Insertion order matters: RequestContext must be outermost among user
+    middleware so ``scope["state"]["request_id"]`` exists before rate limiting.
+    """
+    app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-Id"],
+    )
