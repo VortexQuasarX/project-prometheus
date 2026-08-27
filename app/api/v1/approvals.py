@@ -7,7 +7,7 @@ spec-gap fix so the Approvals page has a list source (see docs/ARCHITECTURE.md).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.agents.schemas import DecisionRequest
 from app.core.errors import PrometheusError
@@ -67,6 +67,8 @@ def approve_action(
         raise PrometheusError(
             f"Unknown action_id: {action_id}", code="not_found", status_code=404
         ) from exc
+    except ValueError as exc:
+        raise PrometheusError(str(exc), code="invalid_action_state", status_code=409) from exc
 
 
 @router.post("/agents/actions/{action_id}/reject")
@@ -84,3 +86,5 @@ def reject_action(
         raise PrometheusError(
             f"Unknown action_id: {action_id}", code="not_found", status_code=404
         ) from exc
+    except ValueError as exc:
+        raise PrometheusError(str(exc), code="invalid_action_state", status_code=409) from exc

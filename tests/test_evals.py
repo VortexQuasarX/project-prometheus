@@ -28,7 +28,7 @@ EXPECTED_CATEGORIES = {
 
 
 def test_golden_prompts_cover_required_categories():
-    with open("evals/golden_prompts.yaml", "r", encoding="utf-8") as fh:
+    with open("evals/golden_prompts.yaml", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     cases = data["cases"] if isinstance(data, dict) else data
     assert len(cases) >= 10

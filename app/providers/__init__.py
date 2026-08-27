@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 __all__ = [
     "TransientProviderError",

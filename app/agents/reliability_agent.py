@@ -10,14 +10,14 @@ change. All DB access is lazy + guarded so the module imports standalone.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.tools import run_tool
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:

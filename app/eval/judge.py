@@ -31,7 +31,7 @@ import re
 from typing import Any
 
 from app.core.config import settings
-from app.eval.metrics import METRIC_KEYS, SCORE_KEYS
+from app.eval.metrics import SCORE_KEYS
 from app.governance.policy_engine import get_policy
 
 PASS_THRESHOLD = 0.7

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -43,7 +43,7 @@ class AuditEvent:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_session() -> Any:
@@ -97,7 +97,7 @@ def append(
 ) -> AuditEvent:
     """Write an audit event (append-only) and return it."""
     event_id = f"evt_{uuid.uuid4().hex[:12]}"
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
     event = AuditEvent(
         event_id=event_id,
         actor=actor,
@@ -121,7 +121,7 @@ def append(
                 action=action,
                 resource=resource,
                 request_id=request_id,
-                metadata=metadata or {},
+                details=metadata or {},
                 created_at=created_at,
             )
             db.add(row)

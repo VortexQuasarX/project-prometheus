@@ -22,9 +22,9 @@ imported lazily so this module compiles and imports standalone.
 from __future__ import annotations
 
 import time
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 FINOPS_TOOLS: tuple[str, ...] = (
     "get_usage_metrics",
@@ -53,7 +53,7 @@ RELIABILITY_TOOLS: tuple[str, ...] = (
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:
@@ -63,13 +63,18 @@ def _emit_sse(event_type: str, **payload: Any) -> None:
     except Exception:
         return
     try:
-        emit = getattr(events, "emit_sse", None) or getattr(events, "emit", None)
-        if emit is not None:
-            emit(event_type=event_type, **payload)
-            return
-        write = getattr(events, "write_outbox", None)
-        if write is not None:
-            write(event_type=event_type, **payload)
+        request_id = payload.pop("request_id", None)
+        run_id = payload.pop("run_id", None)
+        action_id = payload.pop("action_id", None)
+        inner = payload.pop("payload", None)
+        body = inner if isinstance(inner, dict) else dict(payload)
+        events.emit_sse_event(
+            event_type,
+            body,
+            request_id=request_id if isinstance(request_id, str) else None,
+            run_id=run_id if isinstance(run_id, str) else None,
+            action_id=action_id if isinstance(action_id, str) else None,
+        )
     except Exception:
         return
 
@@ -314,8 +319,7 @@ def apply_local_policy(run_id: str, input_dict: dict[str, Any], db: Any) -> dict
     policy_delta = dict(input_dict.get("policy_delta") or {})
     actor = str(input_dict.get("actor", "finops_agent"))
     try:
-        from app.governance.policy_engine import update_policy
-        from app.governance.policy_engine import get_policy
+        from app.governance.policy_engine import get_policy, update_policy
 
         current, version = get_policy()
         merged = {**current, **policy_delta}
@@ -406,7 +410,7 @@ def create_alert(run_id: str, input_dict: dict[str, Any], db: Any) -> dict[str, 
             message=message,
             details=metadata,
             acknowledged=False,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         db.add(alert)
         db.commit()
@@ -484,7 +488,7 @@ def run_tool(tool_name: str, run_id: str, input_dict: dict[str, Any], db: Any) -
             output=output,
             duration_ms=duration_ms,
             status=status,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         db.add(row)
         db.commit()

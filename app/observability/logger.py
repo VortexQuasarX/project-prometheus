@@ -8,9 +8,10 @@ consumers.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, Iterator
+from typing import Any
 
 from app.core.security import mask_sensitive
 

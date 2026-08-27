@@ -1,6 +1,6 @@
 """Semantic cache: miss->hit, near-duplicate, TTL, stats, policy invalidation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def test_cache_miss_then_hit(run_chat):
@@ -22,14 +22,13 @@ def test_cache_near_duplicate_hits(run_chat):
 def test_cache_ttl_expiry(run_chat):
     q = "Unique TTL expiry probe epsilon"
     run_chat(q)
-    from sqlalchemy import select
 
     from app.db.models import CacheEntry
     from app.db.session import SessionLocal
 
     with SessionLocal() as s:
         for row in s.query(CacheEntry).all():
-            row.expires_at = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            row.expires_at = datetime(2020, 1, 1, tzinfo=UTC)
         s.commit()
     r2 = run_chat(q)
     assert r2.json()["cache_hit"] is False

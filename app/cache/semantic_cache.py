@@ -33,8 +33,9 @@ import hashlib
 import inspect
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.providers import get_setting
 from app.providers.embeddings.mock_embeddings import cosine_similarity
@@ -58,7 +59,7 @@ def normalize_query(query: str) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime) -> str:
@@ -70,12 +71,12 @@ def _from_iso(value: str | None) -> datetime | None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
     try:
         parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=timezone.utc)
+            return parsed.replace(tzinfo=UTC)
         return parsed
     except ValueError:
         return None
@@ -210,7 +211,7 @@ class SemanticCache:
             model_cls = _cache_entry_model()
             normalized = normalize_query(query)
             storage_key = hashlib.sha256(
-                f"{normalized}|{policy_version}|{kb_version}|{cache_version}".encode("utf-8")
+                f"{normalized}|{policy_version}|{kb_version}|{cache_version}".encode()
             ).hexdigest()
             session.query(model_cls).filter_by(cache_key=storage_key).delete()
             entry = model_cls(

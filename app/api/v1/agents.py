@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 
 from app.agents.orchestrator import create_run, get_run, list_runs
 from app.agents.schemas import AgentRunCreate

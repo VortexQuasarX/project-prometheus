@@ -12,8 +12,7 @@ title "Route simple queries to cheaper model", expected_monthly_saving_usd
 
 from __future__ import annotations
 
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents import planner
@@ -22,7 +21,7 @@ from app.agents.tools import run_tool
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:
@@ -39,24 +38,31 @@ def _emit_sse(event_type: str, **payload: Any) -> None:
 
 
 def _record_step(run: Any, name: str, input_dict: dict[str, Any], output: dict[str, Any]) -> None:
-    """Append a StepRecord-shaped dict to run.steps (best-effort)."""
-    if not hasattr(run, "steps"):
-        return
+    """Persist one executed step into the agent_steps table (best-effort)."""
     try:
-        steps = list(run.steps or [])
-        steps.append(
-            {
-                "name": name,
-                "status": "success" if output.get("error") is None else "error",
-                "input": input_dict,
-                "output": output,
-                "duration_ms": 0,
-            }
-        )
-        run.steps = steps
-    except Exception:
-        pass
+        from app.db import models
+        from app.db.session import SessionLocal
 
+        with SessionLocal() as db:
+            index = (
+                db.query(models.AgentStep)
+                .filter(models.AgentStep.run_id == run.run_id)
+                .count()
+            )
+            db.add(
+                models.AgentStep(
+                    run_id=run.run_id,
+                    step_index=int(index),
+                    name=name,
+                    status="success" if output.get("error") is None else "error",
+                    input=dict(input_dict or {}),
+                    output=dict(output or {}),
+                    duration_ms=0,
+                )
+            )
+            db.commit()
+    except Exception:
+        return
 
 def _detect_inefficiencies(trigger: str, observations: dict[str, Any], policy: dict[str, Any]) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
@@ -127,7 +133,7 @@ def run_finops(run: Any, params: dict[str, Any] | None, db: Any) -> None:
 
         usage = db.query(models.UsageRecord).all()
         expensive = set(policy.get("expensive_models", []))
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         for u in usage:
             created = getattr(u, "created_at", None)
             if created is None:
@@ -265,7 +271,8 @@ def run_finops(run: Any, params: dict[str, Any] | None, db: Any) -> None:
 
     # 10. Verify.
     try:
-        run.status = "verified"
+        if getattr(run, "status", "") != "waiting_approval":
+            run.status = "verified"
         run.outcome = {"note": "awaiting subsequent request metrics", "expected_saving_usd": saving}
     except Exception:
         pass

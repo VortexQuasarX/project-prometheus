@@ -9,7 +9,7 @@ Modes: off / cache_only / cheap_only / block_all.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.governance.policy_engine import KILL_SWITCH_MODES, get_policy, update_policy
@@ -20,7 +20,7 @@ BLOCKED_REASON_BLOCK_ALL = "kill_switch_block_all"
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def get_mode() -> str:

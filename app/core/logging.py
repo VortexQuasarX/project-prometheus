@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import settings
@@ -28,7 +28,7 @@ class JsonFormatter(logging.Formatter):
         from app.core.security import mask_sensitive
 
         payload: dict[str, Any] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": mask_sensitive(record.getMessage()),

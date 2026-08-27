@@ -64,9 +64,9 @@ def _bootstrap():
     init_db()
     # Ingest the five seed documents so RAG grounding is available in every test
     # (mirrors scripts/seed_demo.py; the knowledge base is shared reference data).
+    from app.providers.embeddings.base import get_embedder
     from app.rag.retriever import Retriever
     from app.rag.seed_content import ingest_seed_documents
-    from app.providers.embeddings.base import get_embedder
     from app.vector.base import get_vector_store
 
     retriever = Retriever(SessionLocal, get_embedder(), get_vector_store())

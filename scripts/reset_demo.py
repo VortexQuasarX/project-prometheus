@@ -23,12 +23,11 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts"))
 
+import seed_demo  # noqa: E402  (scripts/seed_demo.py, same directory)
 from sqlalchemy.engine import make_url  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.db.session import engine  # noqa: E402
-
-import seed_demo  # noqa: E402  (scripts/seed_demo.py, same directory)
 
 
 def _sqlite_path(database_url: str) -> Path | None:

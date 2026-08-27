@@ -10,7 +10,7 @@ on exceeded (unless already stricter).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.governance.kill_switch import get_mode, set_mode
@@ -26,7 +26,7 @@ _STRICTER_MODES = {"cache_only": 2, "block_all": 3}  # stricter than cheap_only(
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:
@@ -35,9 +35,18 @@ def _emit_sse(event_type: str, **payload: Any) -> None:
     except Exception:
         return
     try:
-        emit = getattr(events, "emit_sse", None) or getattr(events, "emit", None)
-        if emit is not None:
-            emit(event_type=event_type, **payload)
+        request_id = payload.pop("request_id", None)
+        run_id = payload.pop("run_id", None)
+        action_id = payload.pop("action_id", None)
+        inner = payload.pop("payload", None)
+        body = inner if isinstance(inner, dict) else dict(payload)
+        events.emit_sse_event(
+            event_type,
+            body,
+            request_id=request_id if isinstance(request_id, str) else None,
+            run_id=run_id if isinstance(run_id, str) else None,
+            action_id=action_id if isinstance(action_id, str) else None,
+        )
     except Exception:
         return
 
@@ -72,7 +81,7 @@ def _spend_usd() -> tuple[float, float]:
         rows = db.query(models.UsageRecord).all()
         daily = 0.0
         monthly = 0.0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         today = now.date()
         month_start = (now - timedelta(days=30)).date()
         for r in rows:
@@ -160,7 +169,7 @@ def _write_alert(alert_type: str, severity: str, message: str, metadata: dict[st
                 message=message,
                 details=metadata or {},
                 acknowledged=False,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             db.add(row)
             db.commit()
@@ -226,7 +235,7 @@ def get_alerts(limit: int = 20) -> list[dict[str, Any]]:
                         "alert_type": getattr(r, "alert_type", ""),
                         "severity": getattr(r, "severity", ""),
                         "message": getattr(r, "message", ""),
-                        "metadata": dict(getattr(r, "metadata", None) or {}),
+                        "metadata": dict(getattr(r, "details", None) or {}),
                         "acknowledged": bool(getattr(r, "acknowledged", False)),
                         "created_at": created_iso,
                     }

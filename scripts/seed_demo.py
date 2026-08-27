@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import random
 import sys
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -77,7 +77,7 @@ TRACE_EVENT_NAMES: tuple[str, ...] = (
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -122,9 +122,9 @@ def _ingest_documents(session: Any) -> dict[str, Any]:
     if existing > 0:
         return {"skipped": True, "reason": f"{existing} document chunks already present"}
 
+    from app.providers.embeddings.mock_embeddings import MockEmbedder
     from app.rag.retriever import Retriever
     from app.rag.seed_content import ingest_seed_documents
-    from app.providers.embeddings.mock_embeddings import MockEmbedder
     from app.vector.local_vector_store import LocalVectorStore
 
     retriever = Retriever(
@@ -148,7 +148,7 @@ def _make_request(rng: random.Random, day_index: int, seq: int, viewer_key_id: i
 
     hour = 8 + (seq * 19) // 60
     minute = (seq * 19) % 60
-    created_at = datetime.combine(day_date, time(hour=min(23, hour), minute=minute), tzinfo=timezone.utc)
+    created_at = datetime.combine(day_date, time(hour=min(23, hour), minute=minute), tzinfo=UTC)
 
     if is_hit:
         cost = 0.0
@@ -334,7 +334,7 @@ def _seed_traces(session: Any, requests: list[dict[str, Any]]) -> dict[str, Any]
                     name=name,
                     status=status,
                     duration_ms=duration,
-                    metadata={
+                    details={
                         "model": request["model"],
                         "cache_hit": is_hit,
                         "router_decision": request["router_decision"],
@@ -405,8 +405,9 @@ def _cache_stats_from_requests(session: Any) -> dict[str, Any]:
 
 def _usage_metrics_from_requests(session: Any) -> dict[str, Any]:
     """Usage rollup consistent with the seeded rows (tools shape)."""
-    from app.db.models import Request, UsageRecord
     from sqlalchemy import func
+
+    from app.db.models import Request, UsageRecord
 
     total_cost = float(
         session.query(func.coalesce(func.sum(UsageRecord.cost_usd), 0.0)).scalar() or 0.0

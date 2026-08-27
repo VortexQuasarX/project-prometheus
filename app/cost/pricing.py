@@ -6,7 +6,7 @@ Exact numbers per DECISIONS.md B11. Each entry has the four spec fields
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from app.core.logging import get_logger
 

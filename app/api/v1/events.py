@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import StreamingResponse
@@ -57,8 +57,8 @@ async def event_stream(
 
     async def gen():
         watermark = 0
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=REPLAY_WINDOW_MINUTES)
-        last_keepalive = datetime.now(timezone.utc)
+        cutoff = datetime.now(UTC) - timedelta(minutes=REPLAY_WINDOW_MINUTES)
+        last_keepalive = datetime.now(UTC)
         try:
             for ev in recent_sse_events(since_id=0, limit=200):
                 created = ev.get("created_at") or ""
@@ -69,7 +69,7 @@ async def event_stream(
                 for ev in recent_sse_events(since_id=watermark, limit=50):
                     yield _frame(ev.get("event_type", "message"), ev.get("payload") or {})
                     watermark = max(watermark, int(ev.get("id") or 0))
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 if (now - last_keepalive).total_seconds() >= KEEPALIVE_INTERVAL_S:
                     yield ": ping\n\n"
                     last_keepalive = now

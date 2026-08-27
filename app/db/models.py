@@ -14,7 +14,7 @@ Conventions:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -25,13 +25,13 @@ from app.db.base import Base
 
 def utcnow() -> datetime:
     """Current time as a timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ensure_utc(value: datetime | None) -> datetime | None:
     """Attach UTC tzinfo to naive datetimes (SQLite returns naive on read)."""
     if value is not None and value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 

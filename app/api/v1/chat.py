@@ -1,4 +1,4 @@
-"""POST /api/v1/chat — the 12-step agentic gateway pipeline.
+"""POST /api/v1/chat Ã¢â‚¬â€ the 12-step agentic gateway pipeline.
 
 Pipeline order (SPEC "CHAT PIPELINE REQUIREMENTS"):
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header
@@ -21,9 +22,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agents.evaluator_agent import EvalResult, evaluate as evaluator_evaluate
+from app.agents.evaluator_agent import EvalResult
+from app.agents.evaluator_agent import evaluate as evaluator_evaluate
 from app.agents.guardrail_agent import check as guardrail_check
-from app.agents.router_agent import RouterDecision, decide as router_decide
+from app.agents.router_agent import RouterDecision
+from app.agents.router_agent import decide as router_decide
 from app.cache.cache_policy import should_cache
 from app.cache.semantic_cache import SemanticCache
 from app.core.config import settings
@@ -208,9 +211,17 @@ def run_chat_pipeline(
 
     # --- idempotent replay (B5): same key -> same stored response ------------
     if idempotency_key:
+        from datetime import datetime, timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(
+            seconds=int(settings.idempotency_ttl_seconds)
+        )
         existing = db.scalar(
             select(Request)
-            .where(Request.idempotency_key == idempotency_key)
+            .where(
+                Request.idempotency_key == idempotency_key,
+                Request.created_at >= cutoff,
+            )
             .order_by(Request.created_at.desc())
         )
         if existing is not None and existing.response_json:
@@ -342,6 +353,31 @@ def run_chat_pipeline(
         },
     )
     model = model or decision.model
+    # Caller-supplied model must respect the policy allowlist (B4/MEDIUM fix).
+    allowed_models = policy.get("allowed_models") or []
+    if model and model not in allowed_models:
+        raise PrometheusError(
+            f"Model {model!r} is not allowed by the active policy",
+            code="model_not_allowed",
+            status_code=403,
+        )
+    # Expensive-model daily cap (B8) enforced in the request path.
+    if model in set(policy.get("expensive_models") or []):
+        from sqlalchemy import func
+
+        from app.db.models import UsageRecord, utc_today
+
+        used = db.scalar(
+            select(func.count(UsageRecord.id)).where(
+                UsageRecord.model == model, UsageRecord.date == utc_today()
+            )
+        )
+        if int(used or 0) >= int(policy.get("expensive_model_limit_per_day", 20)):
+            raise PrometheusError(
+                "Daily limit reached for expensive models",
+                code="expensive_model_limit_reached",
+                status_code=403,
+            )
     # Kill-switch gating on the EFFECTIVE model (a caller-requested override
     # must not bypass cheap_only/cache_only enforcement).
     final_decision, blocked_reason = apply_to_decision(decision.decision, model)
@@ -448,6 +484,41 @@ def run_chat_pipeline(
             request_id, "cost_logged",
             metadata={"cost_usd": 0.0, "cost_saved_usd": cost_saved},
         )
+        add_trace_event(request_id, "response_returned", duration_ms=_elapsed_ms())
+        return response
+
+    # --- cache_only kill switch: a miss is refused without any LLM call (B6) ---
+    if get_mode() == "cache_only":
+        response = _chat_response(
+            request_id=request_id,
+            answer=KILL_SWITCH_TEMPLATE.format(reason="kill_switch_cache_only"),
+            provider="none",
+            model="",
+            router_decision="CACHE_ONLY",
+            cache_hit=False,
+            estimated_cost_usd=0.0,
+            cost_saved_usd=0.0,
+            latency_ms=_elapsed_ms(),
+            input_tokens=0,
+            output_tokens=0,
+            guardrail_status="blocked_kill_switch",
+            evaluation_score=None,
+            citations=[],
+        )
+        _store_request_row(
+            db, request_id=request_id, api_key=api_key, response=response,
+            status="blocked", error_code="kill_switch_cache_only",
+            idempotency_key=idempotency_key,
+        )
+        audit_append(
+            getattr(api_key, "name", "api") or "api",
+            api_key.role,
+            "kill_switch.blocked",
+            "chat",
+            request_id=request_id,
+            metadata={"reason": "kill_switch_cache_only"},
+        )
+        add_trace_event(request_id, "cost_logged", metadata={"cost_usd": 0.0})
         add_trace_event(request_id, "response_returned", duration_ms=_elapsed_ms())
         return response
 

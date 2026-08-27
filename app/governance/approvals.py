@@ -9,7 +9,7 @@ marks the action applied, moves the run to ``applied``, emits SSE
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from app.governance.policy_engine import get_policy, update_policy
@@ -18,7 +18,7 @@ ACTION_STATUSES = ("pending", "approved", "rejected", "applied")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:
@@ -27,9 +27,18 @@ def _emit_sse(event_type: str, **payload: Any) -> None:
     except Exception:
         return
     try:
-        emit = getattr(events, "emit_sse", None) or getattr(events, "emit", None)
-        if emit is not None:
-            emit(event_type=event_type, **payload)
+        request_id = payload.pop("request_id", None)
+        run_id = payload.pop("run_id", None)
+        action_id = payload.pop("action_id", None)
+        inner = payload.pop("payload", None)
+        body = inner if isinstance(inner, dict) else dict(payload)
+        events.emit_sse_event(
+            event_type,
+            body,
+            request_id=request_id if isinstance(request_id, str) else None,
+            run_id=run_id if isinstance(run_id, str) else None,
+            action_id=action_id if isinstance(action_id, str) else None,
+        )
     except Exception:
         return
 
@@ -90,8 +99,8 @@ def create_action(
             status="pending",
             decided_by=None,
             decided_at=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         db.add(action)
         db.commit()
@@ -167,6 +176,8 @@ def decide_action(
         action = db.query(models.AgentAction).filter(models.AgentAction.action_id == action_id).first()
         if action is None:
             raise KeyError(f"action not found: {action_id}")
+        if getattr(action, "status", "pending") != "pending":
+            raise ValueError(f"action {action_id} is not pending (status={action.status})")
 
         run = db.query(models.AgentRun).filter(models.AgentRun.run_id == action.run_id).first()
 
@@ -178,13 +189,13 @@ def decide_action(
 
             action.status = "applied"
             action.decided_by = actor
-            action.decided_at = datetime.now(timezone.utc)
-            action.updated_at = datetime.now(timezone.utc)
+            action.decided_at = datetime.now(UTC)
+            action.updated_at = datetime.now(UTC)
             if run is not None:
                 try:
                     run.status = "applied"
                     run.approval_status = "approved"
-                    run.updated_at = datetime.now(timezone.utc)
+                    run.updated_at = datetime.now(UTC)
                 except Exception:
                     pass
             db.commit()
@@ -201,13 +212,13 @@ def decide_action(
         else:  # reject
             action.status = "rejected"
             action.decided_by = actor
-            action.decided_at = datetime.now(timezone.utc)
-            action.updated_at = datetime.now(timezone.utc)
+            action.decided_at = datetime.now(UTC)
+            action.updated_at = datetime.now(UTC)
             if run is not None:
                 try:
                     run.status = "rejected"
                     run.approval_status = "rejected"
-                    run.updated_at = datetime.now(timezone.utc)
+                    run.updated_at = datetime.now(UTC)
                 except Exception:
                     pass
             db.commit()

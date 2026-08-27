@@ -14,10 +14,10 @@ importable. DB access is lazy + guarded; if the db slice is missing,
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 # Spec's exact default policy JSON (SPEC Section 8) + expensive_models (B8).
 DEFAULT_POLICY: dict[str, Any] = {
@@ -68,7 +68,7 @@ class PolicySchema(BaseModel):
     expensive_models: list[str] = Field(default_factory=lambda: list(DEFAULT_POLICY["expensive_models"]))
 
     @classmethod
-    def from_body(cls, body: dict[str, Any]) -> "PolicySchema":
+    def from_body(cls, body: dict[str, Any]) -> PolicySchema:
         """Build from a body dict, applying defaults for optional fields."""
         return cls(**{k: v for k, v in body.items() if k in cls.model_fields})
 
@@ -79,7 +79,7 @@ def validate_policy(body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_session() -> Any:
@@ -132,7 +132,7 @@ def get_policy() -> tuple[dict[str, Any], int]:
                 return dict(row.body or {}), int(row.policy_version)
             # Seed default policy.
             default = copy.deepcopy(DEFAULT_POLICY)
-            seed = models.Policy(policy_version=1, body=default, is_active=True, updated_at=datetime.now(timezone.utc))
+            seed = models.Policy(policy_version=1, body=default, is_active=True, updated_at=datetime.now(UTC))
             db.add(seed)
             db.commit()
             return dict(default), 1
@@ -170,7 +170,7 @@ def update_policy(new_body: dict[str, Any], actor: str, reason: str) -> tuple[di
         old_body = dict(active.body) if active is not None else {}
         old_version = int(active.policy_version) if active is not None else 1
         new_version = old_version + 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if active is not None:
             active.is_active = False

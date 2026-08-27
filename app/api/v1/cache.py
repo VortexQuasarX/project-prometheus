@@ -17,8 +17,8 @@ def _cache() -> SemanticCache:
 
     def _kb_version() -> int:
         try:
-            from app.rag.retriever import Retriever
             from app.providers.embeddings.base import get_embedder
+            from app.rag.retriever import Retriever
             from app.vector.base import get_vector_store
 
             retriever = Retriever(get_db, get_embedder(), get_vector_store())

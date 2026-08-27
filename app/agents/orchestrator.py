@@ -14,7 +14,7 @@ lazy-imported so this module compiles standalone.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.planner import build_plan
@@ -25,7 +25,7 @@ APPROVAL_STATUSES = ("none", "pending", "approved", "rejected")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _emit_sse(event_type: str, **payload: Any) -> None:
@@ -34,9 +34,18 @@ def _emit_sse(event_type: str, **payload: Any) -> None:
     except Exception:
         return
     try:
-        emit = getattr(events, "emit_sse", None) or getattr(events, "emit", None)
-        if emit is not None:
-            emit(event_type=event_type, **payload)
+        request_id = payload.pop("request_id", None)
+        run_id = payload.pop("run_id", None)
+        action_id = payload.pop("action_id", None)
+        inner = payload.pop("payload", None)
+        body = inner if isinstance(inner, dict) else dict(payload)
+        events.emit_sse_event(
+            event_type,
+            body,
+            request_id=request_id if isinstance(request_id, str) else None,
+            run_id=run_id if isinstance(run_id, str) else None,
+            action_id=action_id if isinstance(action_id, str) else None,
+        )
     except Exception:
         return
 
@@ -232,7 +241,7 @@ def create_run(agent_type: str, trigger: str, params: dict[str, Any] | None = No
     try:
         models = _models()
         run_id = f"run_{uuid.uuid4().hex[:12]}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         run = models.AgentRun(
             run_id=run_id,
             agent_type=agent_type,
@@ -266,14 +275,14 @@ def create_run(agent_type: str, trigger: str, params: dict[str, Any] | None = No
             pass
 
         _set(run, "status", "running")
-        _set(run, "updated_at", datetime.now(timezone.utc))
+        _set(run, "updated_at", datetime.now(UTC))
         db.commit()
 
         runner = _resolve_runner(agent_type)
         runner(run, params or {}, db)
 
         final_status = getattr(run, "status", "verified")
-        _set(run, "updated_at", datetime.now(timezone.utc))
+        _set(run, "updated_at", datetime.now(UTC))
         db.commit()
         _emit_sse("agent_completed", run_id=run_id, payload={"agent_type": agent_type, "status": final_status})
         return _serialize_run(run)
@@ -282,7 +291,7 @@ def create_run(agent_type: str, trigger: str, params: dict[str, Any] | None = No
             try:
                 _set(run, "status", "failed")
                 _set(run, "outcome", {"error": f"{type(exc).__name__}: {exc}"})
-                _set(run, "updated_at", datetime.now(timezone.utc))
+                _set(run, "updated_at", datetime.now(UTC))
                 db.commit()
                 _emit_sse("agent_completed", run_id=getattr(run, "run_id", ""), payload={"status": "failed"})
                 return _serialize_run(run)
@@ -344,7 +353,40 @@ def get_run(run_id: str) -> dict[str, Any]:
         run = db.query(models.AgentRun).filter(models.AgentRun.run_id == run_id).first()
         if run is None:
             raise KeyError(f"run not found: {run_id}")
-        return _serialize_run(run)
+        detail = _serialize_run(run)
+        steps = (
+            db.query(models.AgentStep)
+            .filter(models.AgentStep.run_id == run_id)
+            .order_by(models.AgentStep.step_index.asc(), models.AgentStep.id.asc())
+            .all()
+        )
+        tool_calls = (
+            db.query(models.AgentToolCall)
+            .filter(models.AgentToolCall.run_id == run_id)
+            .order_by(models.AgentToolCall.id.asc())
+            .all()
+        )
+        detail["steps"] = [
+            {
+                "name": getattr(s, "name", ""),
+                "status": getattr(s, "status", ""),
+                "input": getattr(s, "input", {}) or {},
+                "output": getattr(s, "output", {}) or {},
+                "duration_ms": int(getattr(s, "duration_ms", 0) or 0),
+            }
+            for s in steps
+        ]
+        detail["tool_calls"] = [
+            {
+                "tool": getattr(t, "tool", ""),
+                "input": getattr(t, "input", {}) or {},
+                "output": getattr(t, "output", {}) or {},
+                "duration_ms": int(getattr(t, "duration_ms", 0) or 0),
+                "status": getattr(t, "status", ""),
+            }
+            for t in tool_calls
+        ]
+        return detail
     finally:
         try:
             db.close()

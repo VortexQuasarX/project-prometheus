@@ -15,8 +15,9 @@ from app.api.v1 import (
     cache,
     chat,
     cost,
-    events,
+    demo,
     evals,
+    events,
     health,
     ingest,
     metrics,
@@ -39,5 +40,6 @@ api_router.include_router(agents.router, tags=["agents"])
 api_router.include_router(approvals.router, tags=["approvals"])
 api_router.include_router(evals.router, tags=["evals"])
 api_router.include_router(audit.router, tags=["audit"])
+api_router.include_router(demo.router, tags=["demo"])
 
 __all__ = ["api_router"]

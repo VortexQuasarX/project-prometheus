@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
@@ -24,7 +24,7 @@ router = APIRouter()
 def cost_report(_: object = Depends(require_api_key)) -> dict:
     """Daily/monthly/model-wise spend, cache savings and recommendations."""
     stats = get_usage_stats(days=7)
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     month = today[:7]
     return {
         "daily": [{"date": today, "cost": get_daily_spend()}],
