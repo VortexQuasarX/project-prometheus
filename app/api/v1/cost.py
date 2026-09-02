@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
-from app.core.security import require_api_key
+from app.core.rbac import require_permission
 from app.cost.recommendations import generate_recommendations
 from app.cost.tracker import (
     get_cache_savings_total,
@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 @router.get("/cost-report")
-def cost_report(_: object = Depends(require_api_key)) -> dict:
+def cost_report(_: object = Depends(require_permission("cost:read"))) -> dict:
     """Daily/monthly/model-wise spend, cache savings and recommendations."""
     stats = get_usage_stats(days=7)
     today = datetime.now(UTC).date().isoformat()

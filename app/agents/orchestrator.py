@@ -231,7 +231,12 @@ def _resolve_runner(agent_type: str) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def create_run(agent_type: str, trigger: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def create_run(
+    agent_type: str,
+    trigger: str,
+    params: dict[str, Any] | None = None,
+    organization_id: str | None = None,
+) -> dict[str, Any]:
     """Create and synchronously execute an agent run. Returns RunDetail dict."""
     if agent_type not in _RUNNERS:
         raise ValueError(f"unknown agent_type: {agent_type}")
@@ -245,6 +250,7 @@ def create_run(agent_type: str, trigger: str, params: dict[str, Any] | None = No
         run = models.AgentRun(
             run_id=run_id,
             agent_type=agent_type,
+            organization_id=organization_id,
             trigger=trigger,
             status="pending",
             plan=build_plan(agent_type, trigger),
@@ -310,12 +316,18 @@ def list_runs(
     agent_type: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    organization_id: str | None = None,
 ) -> dict[str, Any]:
     """Return ``{items: [...RunSummary], total}``."""
     db = _new_session()
     try:
         models = _models()
         query = db.query(models.AgentRun)
+        if organization_id:
+            query = query.filter(
+                (models.AgentRun.organization_id == organization_id)
+                | (models.AgentRun.organization_id.is_(None))
+            )
         if status:
             query = query.filter(models.AgentRun.status == status)
         if agent_type:

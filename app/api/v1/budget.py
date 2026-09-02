@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.core.errors import PrometheusError
-from app.core.security import require_admin, require_api_key
+from app.core.rbac import require_permission
 from app.governance.budget import get_alerts, get_budget_status
 from app.governance.kill_switch import KILL_SWITCH_MODES, set_mode
 
@@ -19,7 +19,7 @@ class KillSwitchRequest(BaseModel):
 
 
 @router.get("/budget")
-def budget(_: object = Depends(require_api_key)) -> dict:
+def budget(_: object = Depends(require_permission("budget:read"))) -> dict:
     """Daily/monthly spend, budget state, kill-switch mode, recommendations."""
     return get_budget_status()
 
@@ -27,7 +27,7 @@ def budget(_: object = Depends(require_api_key)) -> dict:
 @router.get("/alerts")
 def alerts(
     limit: int = Query(20, ge=1, le=100),
-    _: object = Depends(require_api_key),
+    _: object = Depends(require_permission("budget:read")),
 ) -> dict:
     """Recent budget/reliability alerts (spec-gap fix endpoint)."""
     return {"items": get_alerts(limit=limit)}
@@ -36,7 +36,7 @@ def alerts(
 @router.post("/budget/kill-switch")
 def kill_switch(
     body: KillSwitchRequest,
-    key: object = Depends(require_admin),
+    key: object = Depends(require_permission("budget:write")),
 ) -> dict:
     """Set the kill-switch mode (admin). Audited + policy version bump."""
     if body.kill_switch_mode not in KILL_SWITCH_MODES:

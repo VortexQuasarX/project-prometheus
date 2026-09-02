@@ -116,6 +116,7 @@ def _store_request_row(
     """Persist the request snapshot row (used for traces + idempotent replay)."""
     row = Request(
         request_id=request_id,
+        organization_id=getattr(api_key, "organization_id", None),
         idempotency_key=idempotency_key,
         api_key_id=getattr(api_key, "id", None),
         model=response.get("model"),
@@ -723,6 +724,7 @@ def run_chat_pipeline(
             "cost_usd": cost,
             "evaluation_score": evaluation_score,
         },
+        organization_id=getattr(api_key, "organization_id", None),
     )
 
     # --- 12. response_returned ----------------------------------------------

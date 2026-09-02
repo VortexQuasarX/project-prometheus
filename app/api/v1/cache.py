@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from app.cache.semantic_cache import SemanticCache
 from app.core.config import settings
-from app.core.security import require_api_key
+from app.core.rbac import require_permission
 from app.db.session import get_db
 from app.governance.policy_engine import get_policy
 
@@ -37,7 +37,7 @@ router = APIRouter()
 
 
 @router.get("/cache-stats")
-def cache_stats(_: object = Depends(require_api_key)) -> dict:
+def cache_stats(_: object = Depends(require_permission("cache:read"))) -> dict:
     """Hit/miss counters, savings, versions and tuning values."""
     stats = _cache().stats()
     stats["threshold"] = settings.cache_similarity_threshold

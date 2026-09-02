@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.security import require_admin
+from app.core.rbac import require_permission
 from app.db.session import get_db
 from app.governance.audit import append as audit_append
 from app.providers.embeddings.base import get_embedder
@@ -28,7 +28,7 @@ class IngestRequest(BaseModel):
 @router.post("/ingest")
 def ingest(
     body: IngestRequest,
-    key: object = Depends(require_admin),
+    key: object = Depends(require_permission("documents:write")),
     db: Session = Depends(get_db),
 ) -> dict:
     """Chunk + embed + store a document; bumps the KB version (cache invalidation)."""

@@ -178,7 +178,7 @@ def _resolve_admin_key(session: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-def run_evals(limit: int | None = None, golden_set: str | None = None, db: Any = None) -> dict[str, Any]:
+def run_evals(limit: int | None = None, golden_set: str | None = None, organization_id: str | None = None, db: Any = None) -> dict[str, Any]:
     """Execute the golden set through the chat pipeline and persist the run.
 
     ``limit``       — run at most the first N cases.
@@ -230,7 +230,7 @@ def run_evals(limit: int | None = None, golden_set: str | None = None, db: Any =
             session.close()
 
 
-def list_eval_runs(limit: int = 50, offset: int = 0, db: Any = None) -> dict[str, Any]:
+def list_eval_runs(limit: int = 50, offset: int = 0, organization_id: str | None = None, db: Any = None) -> dict[str, Any]:
     """Eval-run summaries, newest first: ``{"items": [...], "total": n}``."""
     from app.db.models import EvalRun, iso_utc
 

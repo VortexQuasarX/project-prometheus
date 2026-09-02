@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.errors import PrometheusError
-from app.core.security import require_admin
+from app.core.rbac import require_permission
 from app.governance.policy_engine import get_policy, update_policy
 
 router = APIRouter()
@@ -20,14 +20,14 @@ class PolicyUpdate(BaseModel):
 
 
 @router.get("/policies")
-def policies(_: object = Depends(require_admin)) -> dict:
+def policies(_: object = Depends(require_permission("policies:read"))) -> dict:
     """Return the active policy, its version and last update time."""
     policy, version = get_policy()
     return {"policy": policy, "policy_version": version}
 
 
 @router.put("/policies")
-def update_policies(body: PolicyUpdate, key: object = Depends(require_admin)) -> dict:
+def update_policies(body: PolicyUpdate, key: object = Depends(require_permission("policies:write"))) -> dict:
     """Replace the active policy. Audited + version-bumped (cache invalidation)."""
     actor = getattr(key, "name", "admin") or "admin"
     try:

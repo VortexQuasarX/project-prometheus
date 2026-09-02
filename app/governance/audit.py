@@ -94,6 +94,7 @@ def append(
     resource: str,
     request_id: str | None = None,
     metadata: dict[str, Any] | None = None,
+    organization_id: str | None = None,
 ) -> AuditEvent:
     """Write an audit event (append-only) and return it."""
     event_id = f"evt_{uuid.uuid4().hex[:12]}"
@@ -121,6 +122,7 @@ def append(
                 action=action,
                 resource=resource,
                 request_id=request_id,
+                organization_id=organization_id,
                 details=metadata or {},
                 created_at=created_at,
             )
@@ -144,6 +146,7 @@ def query(
     action: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    organization_id: str | None = None,
 ) -> list[AuditEvent]:
     """Query audit events (newest first), optionally filtered."""
     try:
@@ -152,6 +155,11 @@ def query(
         db = _new_session()
         try:
             q = db.query(models.AuditEvent)
+            if organization_id:
+                q = q.filter(
+                    (models.AuditEvent.organization_id == organization_id)
+                    | (models.AuditEvent.organization_id.is_(None))
+                )
             if actor:
                 q = q.filter(models.AuditEvent.actor == actor)
             if action:

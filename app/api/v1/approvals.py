@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.agents.schemas import DecisionRequest
 from app.core.errors import PrometheusError
-from app.core.security import require_admin, require_api_key
+from app.core.rbac import require_permission
 from app.governance.approvals import decide_action, list_pending_actions
 
 router = APIRouter()
@@ -24,7 +24,7 @@ class _ActionEnvelope(BaseModel):
 @router.get("/agents/actions")
 def pending_actions(
     status: str = Query("pending"),
-    _: object = Depends(require_api_key),
+    _: object = Depends(require_permission("agents:read")),
 ) -> _ActionEnvelope:
     """List agent actions, defaulting to pending (Approvals page source)."""
     if status != "pending":
@@ -56,7 +56,7 @@ def _action_to_dict(action: object) -> dict:
 def approve_action(
     action_id: str,
     body: DecisionRequest | None = None,
-    key: object = Depends(require_admin),
+    key: object = Depends(require_permission("approvals:decide")),
 ) -> dict:
     """Approve a pending FinOps action -> applies the policy delta (audited)."""
     actor = getattr(key, "name", "admin") or "admin"
@@ -75,7 +75,7 @@ def approve_action(
 def reject_action(
     action_id: str,
     body: DecisionRequest | None = None,
-    key: object = Depends(require_admin),
+    key: object = Depends(require_permission("approvals:decide")),
 ) -> dict:
     """Reject a pending FinOps action (audited)."""
     actor = getattr(key, "name", "admin") or "admin"

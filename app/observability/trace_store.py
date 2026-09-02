@@ -84,11 +84,19 @@ def get_timeline(request_id: str) -> list[dict[str, Any]]:
         ]
 
 
-def get_trace_summary(request_id: str) -> dict[str, Any] | None:
-    """Request-level summary for the trace-detail endpoint (None -> 404)."""
+def get_trace_summary(
+    request_id: str, organization_id: str | None = None
+) -> dict[str, Any] | None:
+    """Request-level summary for the trace-detail endpoint (None -> 404).
+
+    With ``organization_id`` set, traces belonging to a different organization
+    return None (404 at the API layer) — tenant isolation.
+    """
     with SessionLocal() as session:
         row = session.scalar(select(Request).where(Request.request_id == request_id))
         if row is None:
+            return None
+        if organization_id and (row.organization_id or "") not in ("", organization_id):
             return None
         return {
             "request_id": row.request_id,
@@ -110,6 +118,7 @@ def list_traces(
     limit: int = 50,
     offset: int = 0,
     status: str | None = None,
+    organization_id: str | None = None,
 ) -> dict[str, Any]:
     """Trace summaries, newest first: ``{"items": [...], "total": n}``."""
     limit = max(1, min(int(limit), 500))
@@ -120,6 +129,12 @@ def list_traces(
         if status:
             query = query.where(Request.status == status)
             count_query = count_query.where(Request.status == status)
+        if organization_id:
+            org_filter = (Request.organization_id == organization_id) | (
+                Request.organization_id.is_(None)
+            )
+            query = query.where(org_filter)
+            count_query = count_query.where(org_filter)
         total = int(session.scalar(count_query) or 0)
         rows = session.scalars(
             query.order_by(Request.created_at.desc()).offset(offset).limit(limit)

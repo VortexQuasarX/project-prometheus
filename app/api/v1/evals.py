@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.core.errors import PrometheusError
-from app.core.security import require_admin, require_api_key
+from app.core.rbac import require_permission
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ class EvalRunRequest(BaseModel):
 @router.post("/evals/run")
 def run_evals_endpoint(
     body: EvalRunRequest | None = None,
-    _: object = Depends(require_admin),
+    key: object = Depends(require_permission("evals:run")),
 ) -> dict:
     """Run the golden-set evaluation harness through the in-process chat pipeline."""
     from app.eval.runner import run_evals  # lazy: harness slice
@@ -31,6 +31,7 @@ def run_evals_endpoint(
     return run_evals(
         limit=body.limit if body else None,
         golden_set=body.golden_set if body else None,
+        organization_id=getattr(key, "organization_id", None),
     )
 
 
@@ -38,15 +39,15 @@ def run_evals_endpoint(
 def eval_runs(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    _: object = Depends(require_api_key),
+    key: object = Depends(require_permission("evals:read")),
 ) -> dict:
     from app.eval.runner import list_eval_runs  # lazy
 
-    return list_eval_runs(limit=limit, offset=offset)
+    return list_eval_runs(limit=limit, offset=offset, organization_id=getattr(key, "organization_id", None))
 
 
 @router.get("/evals/runs/{run_id}")
-def eval_run_detail(run_id: str, _: object = Depends(require_api_key)) -> dict:
+def eval_run_detail(run_id: str, _: object = Depends(require_permission("evals:read"))) -> dict:
     from app.eval.runner import get_eval_run  # lazy
 
     try:

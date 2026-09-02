@@ -47,6 +47,18 @@ def utc_today() -> str:
     return utcnow().date().isoformat()
 
 
+class Organization(Base):
+    """Tenant organization (multi-tenancy)."""
+
+    __tablename__ = "organizations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    plan: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class ApiKey(Base):
     """API keys for MVP auth. Stored as SHA-256 hashes; role: admin | viewer."""
 
@@ -55,7 +67,10 @@ class ApiKey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False, default="default")
-    role: Mapped[str] = mapped_column(String(16), nullable=False, default="viewer")
+    role: Mapped[str] = mapped_column(String(64), nullable=False, default="viewer")
+    organization_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -85,6 +100,9 @@ class Request(Base):
     response_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    organization_id: Mapped[str | None] = mapped_column(
+            String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+        )
 
 
 class UsageRecord(Base):
@@ -160,6 +178,9 @@ class Document(Base):
     details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
     kb_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    organization_id: Mapped[str | None] = mapped_column(
+            String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+        )
 
 
 class DocumentChunk(Base):
@@ -196,6 +217,9 @@ class AgentRun(Base):
     outcome: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    organization_id: Mapped[str | None] = mapped_column(
+            String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+        )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
@@ -320,6 +344,9 @@ class AuditEvent(Base):
     )
     details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    organization_id: Mapped[str | None] = mapped_column(
+            String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+        )
 
 
 class EvalRun(Base):
@@ -336,6 +363,9 @@ class EvalRun(Base):
     avg_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    organization_id: Mapped[str | None] = mapped_column(
+            String(64), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+        )
 
 
 class EvalResult(Base):
@@ -402,6 +432,7 @@ __all__ = [
     "EvalResult",
     "EvalRun",
     "FailedRequest",
+    "Organization",
     "Policy",
     "PolicyChange",
     "Request",

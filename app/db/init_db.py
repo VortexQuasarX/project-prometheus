@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from app.core.config import settings
 from app.core.security import hash_api_key
 from app.db.base import Base
-from app.db.models import ApiKey, Document, Policy
+from app.db.models import ApiKey, Document, Organization, Policy
 from app.db.session import SessionLocal, engine
 
 logger = logging.getLogger("prometheus.init_db")
@@ -134,11 +134,11 @@ def _resolve_admin_key() -> str:
 def _create_api_keys(session: Any) -> tuple[str, str]:
     admin_raw = _resolve_admin_key()
     session.add(
-        ApiKey(key_hash=hash_api_key(admin_raw), name="admin", role="admin", is_active=True)
+        ApiKey(key_hash=hash_api_key(admin_raw), name="admin", role="admin", is_active=True, organization_id=ensure_default_org(session))
     )
     viewer_raw = f"prometheus-demo-viewer-{secrets.token_hex(8)}"
     session.add(
-        ApiKey(key_hash=hash_api_key(viewer_raw), name="viewer", role="viewer", is_active=True)
+        ApiKey(key_hash=hash_api_key(viewer_raw), name="viewer", role="viewer", is_active=True, organization_id=ensure_default_org(session))
     )
     return admin_raw, viewer_raw
 
@@ -183,6 +183,26 @@ def seed_if_empty() -> dict[str, Any]:
         session.commit()
     logger.info("seed_if_empty complete: %s", seeded)
     return seeded
+
+
+def ensure_default_org(db: Any) -> str:
+    """Create the default organization once; return its id."""
+    from app.core.config import settings as _settings
+
+    org_id = "org_main"
+    existing = db.scalar(select(Organization).where(Organization.id == org_id))
+    if existing is None:
+        db.add(
+            Organization(
+                id=org_id,
+                name="Prometheus Main",
+                slug="main",
+                plan="free",
+            )
+        )
+        db.commit()
+    _ = _settings  # imported for parity with other seed helpers
+    return org_id
 
 
 def init_db() -> dict[str, Any]:
