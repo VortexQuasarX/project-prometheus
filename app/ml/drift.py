@@ -62,7 +62,7 @@ def _psi_single(reference: list[float], current: list[float], bins: int = 10) ->
     ref_p = counts(reference)
     cur_p = counts(current)
     psi = 0.0
-    for r, c in zip(ref_p, cur_p):
+    for r, c in zip(ref_p, cur_p, strict=False):
         r = max(r, 1e-6)
         c = max(c, 1e-6)
         psi += (c - r) * math.log(c / r)
