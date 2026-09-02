@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     default_model: str = "mock-small"
     strong_model: str = "mock-large"
     bedrock_model_id: str = ""
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_cheap_model: str = "gpt-4o-mini"
+    openai_strong_model: str = "gpt-4o"
+    openai_embedding_model: str = "text-embedding-3-small"
     aws_region: str = "us-east-1"
 
     # --- security ---

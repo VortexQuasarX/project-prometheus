@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 
 __all__ = ["Embedder", "SUPPORTED_EMBEDDING_PROVIDERS", "get_embedder"]
 
-SUPPORTED_EMBEDDING_PROVIDERS = ("mock", "bedrock")
+SUPPORTED_EMBEDDING_PROVIDERS = ("mock", "bedrock", "openai")
 
 
 class Embedder(ABC):
@@ -44,6 +44,10 @@ def get_embedder() -> Embedder:
         from app.providers.embeddings.bedrock_embeddings import BedrockEmbedder
 
         return BedrockEmbedder()
+    if provider == "openai":
+        from app.providers.embeddings.openai_embeddings import OpenAIEmbedder
+
+        return OpenAIEmbedder()
     raise ValueError(
         f"Unknown embedding provider {provider!r}; expected one of {SUPPORTED_EMBEDDING_PROVIDERS}"
     )

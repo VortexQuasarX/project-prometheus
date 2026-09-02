@@ -27,7 +27,7 @@ __all__ = [
     "get_provider",
 ]
 
-SUPPORTED_PROVIDERS = ("mock", "bedrock")
+SUPPORTED_PROVIDERS = ("mock", "bedrock", "openai")
 
 
 class ProviderUnavailableError(RuntimeError):
@@ -88,6 +88,10 @@ def get_provider(name: str | None = None) -> LLMProvider:
         from app.providers.llm.bedrock_provider import BedrockProvider
 
         return BedrockProvider()
+    if provider_name == "openai":
+        from app.providers.llm.openai_provider import OpenAIProvider
+
+        return OpenAIProvider()
     raise ValueError(
         f"Unknown LLM provider {provider_name!r}; expected one of {SUPPORTED_PROVIDERS}"
     )
