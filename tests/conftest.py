@@ -25,6 +25,7 @@ os.environ.setdefault("RATE_LIMIT_PER_MINUTE", "1000")
 os.environ.setdefault("ADMIN_API_KEY", "test-admin-key")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("OTEL_TRACES_EXPORTER", "none")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
