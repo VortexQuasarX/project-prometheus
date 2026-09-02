@@ -1,0 +1,49 @@
+---
+# Shared config + secrets references (values are placeholders; real values
+# come from your secret manager / `kubectl create secret`).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  APP_ENV: "production"
+  LLM_PROVIDER: "openai"
+  EMBEDDING_PROVIDER: "openai"
+  VECTOR_STORE_PROVIDER: "pgvector"
+  CACHE_PROVIDER: "redis"
+  DATABASE_URL: "postgresql+psycopg://prometheus@aurora-cluster:5432/prometheus"
+  REDIS_URL: "redis://redis-master.redis.svc.cluster.local:6379/0"
+  OPENAI_BASE_URL: "https://api.openai.com/v1"
+  CORS_ORIGINS: "https://prometheus.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-secrets
+type: Opaque
+stringData:
+  OPENAI_API_KEY: "REPLACE_VIA_SECRET_MANAGER"
+  ADMIN_API_KEY: "REPLACE_VIA_SECRET_MANAGER"
+---
+# Ingress (NGINX class) — TLS via cert-manager in production
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts: [prometheus.example.com]
+      secretName: prometheus-tls
+  rules:
+    - host: prometheus.example.com
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend: { service: { name: prometheus-api, port: { number: 80 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: prometheus-web, port: { number: 80 } } }

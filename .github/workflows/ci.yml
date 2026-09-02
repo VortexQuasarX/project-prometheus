@@ -26,6 +26,14 @@ jobs:
         run: pip install -r app/requirements.txt
       - name: Ruff
         run: ruff check app tests scripts
+      - name: Security scan (bandit)
+        run: |
+          pip install bandit
+          bandit -r app -x app/tests -ll --skip B101
+      - name: Dependency audit (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r app/requirements.txt --ignore-vuln PYSECDATA-2023-0002 || true
       - name: Pytest
         run: python -m pytest tests/ -q
         env:

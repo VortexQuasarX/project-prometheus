@@ -1,0 +1,53 @@
+---
+# ML inference microservice — Deployment + Service + HPA
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-ml-inference
+  labels: { app: prometheus-ml-inference }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: prometheus-ml-inference }
+  template:
+    metadata:
+      labels: { app: prometheus-ml-inference }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8100"
+    spec:
+      containers:
+        - name: ml-inference
+          image: ghcr.io/vortexquasarx/prometheus-ml-inference:latest
+          ports: [{ containerPort: 8100 }]
+          readinessProbe:
+            httpGet: { path: /ready, port: 8100 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8100 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-ml-inference
+spec:
+  selector: { app: prometheus-ml-inference }
+  ports: [{ port: 80, targetPort: 8100 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: prometheus-ml-inference
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: prometheus-ml-inference }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
