@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from app.events_pipeline.kafka_pipeline import (
+    TOPIC_DLQ,
     EventConsumer,
     EventProducer,
     InMemoryBroker,
-    TOPIC_DLQ,
 )
 
 

@@ -12,9 +12,9 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
