@@ -48,8 +48,10 @@ def test_agent_run_creation_and_tool_calls(client, admin_headers):
     assert detail["run_id"] == run["run_id"]
     assert detail["status"] in ("verified", "waiting_approval", "applied")
     assert isinstance(detail["plan"], list) and detail["plan"]
+    assert detail.get("tool_calls"), "finops run must record tool calls"
     for tc in detail.get("tool_calls", []):
         assert set(("tool", "input", "output", "duration_ms", "status")) <= set(tc)
+    assert detail.get("steps"), "finops run must record executed steps"
 
 
 def test_finops_approval_flow(client, admin_headers):

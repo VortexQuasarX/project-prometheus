@@ -220,6 +220,7 @@ def run_chat_pipeline(
             select(Request)
             .where(
                 Request.idempotency_key == idempotency_key,
+                Request.api_key_id == getattr(api_key, "id", None),
                 Request.created_at >= cutoff,
             )
             .order_by(Request.created_at.desc())

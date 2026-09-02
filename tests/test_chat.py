@@ -104,6 +104,12 @@ def test_chat_cache_only_mode_no_llm_call(client, admin_headers):
     body = r.json()
     assert body["cache_hit"] is False
     assert body["estimated_cost_usd"] == 0.0
+    timeline = client.get(
+        f"/api/v1/traces/{body['request_id']}", headers=admin_headers
+    ).json()["timeline"]
+    assert "llm_called" not in [e["name"] for e in timeline], (
+        "cache_only mode must never call the LLM"
+    )
 
 
 def test_viewer_can_chat_but_not_admin(client, viewer_headers):

@@ -112,15 +112,22 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
         headers = _scope_headers(scope)
-        api_key = headers.get("x-api-key")
+        api_key = headers.get("x-api-key") or ""
         path = scope.get("path", "")
         method = scope.get("method", "GET")
-        if method == "OPTIONS" or not api_key or path == "/api/v1/health" or path.endswith("/events/stream"):
+        if method == "OPTIONS" or path == "/api/v1/health" or path.endswith("/events/stream"):
             await self.app(scope, receive, send)
             return
 
         now = time.time()
-        key_hash = hash_api_key(api_key)
+        # Keyless traffic is rate-limited by client IP so it can never bypass
+        # the limiter (review hardening).
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+        if api_key:
+            key_hash = hash_api_key(api_key)
+        else:
+            key_hash = f"ip:{client_ip}"
         allowed, retry_after = self._store.check(key_hash, self.limit_per_minute, now)
         remaining = self._store.remaining(key_hash, self.limit_per_minute, now)
         if not allowed:
