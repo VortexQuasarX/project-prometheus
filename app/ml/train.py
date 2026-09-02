@@ -76,7 +76,7 @@ def train_router_model(
             import mlflow
 
             MLRUNS_DIR.mkdir(parents=True, exist_ok=True)
-mlflow.set_tracking_uri(f"sqlite:///{(Path.cwd() / MLRUNS_DIR).resolve() / 'mlflow.db'}")
+            mlflow.set_tracking_uri(f"sqlite:///{(Path.cwd() / MLRUNS_DIR).resolve() / 'mlflow.db'}")
             mlflow.set_experiment("prometheus-router")
             with mlflow.start_run(run_name="router-distillation"):
                 mlflow.log_params(
