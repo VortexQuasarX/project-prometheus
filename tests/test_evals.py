@@ -1,5 +1,6 @@
 """Evaluation harness: golden set, run execution, avg metrics, detail."""
 
+from pathlib import Path
 import yaml
 
 EVAL_METRICS = (
@@ -28,7 +29,8 @@ EXPECTED_CATEGORIES = {
 
 
 def test_golden_prompts_cover_required_categories():
-    with open("evals/golden_prompts.yaml", encoding="utf-8") as fh:
+    yaml_path = Path(__file__).resolve().parents[1] / 'evals' / 'golden_prompts.yaml'
+    with open(yaml_path, encoding='utf-8') as fh:
         data = yaml.safe_load(fh)
     cases = data["cases"] if isinstance(data, dict) else data
     assert len(cases) >= 10
