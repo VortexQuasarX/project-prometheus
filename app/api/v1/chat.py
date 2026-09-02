@@ -41,6 +41,7 @@ from app.governance.audit import append as audit_append
 from app.governance.budget import after_spend_recorded, get_budget_status
 from app.governance.kill_switch import apply_to_decision, get_mode
 from app.governance.policy_engine import get_policy
+from app.observability.metrics import record_request
 from app.observability.trace_store import add_trace_event
 from app.providers.embeddings.base import get_embedder
 from app.providers.llm.base import ProviderUnavailableError, get_provider
@@ -482,6 +483,16 @@ def run_chat_pipeline(
                 "cost_saved_usd": cost_saved,
             },
         )
+        record_request(
+            model=response["model"],
+            router_decision=final_decision,
+            cache_hit=True,
+            latency_seconds=_elapsed_ms() / 1000.0,
+            input_tokens=response["input_tokens"],
+            output_tokens=response["output_tokens"],
+            cost_usd=0.0,
+            cache_saved_usd=cost_saved,
+        )
         add_trace_event(
             request_id, "cost_logged",
             metadata={"cost_usd": 0.0, "cost_saved_usd": cost_saved},
@@ -728,6 +739,16 @@ def run_chat_pipeline(
     )
 
     # --- 12. response_returned ----------------------------------------------
+    record_request(
+        model=model,
+        router_decision=final_decision,
+        cache_hit=False,
+        latency_seconds=_elapsed_ms() / 1000.0,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cost_usd=cost,
+        cache_saved_usd=0.0,
+    )
     add_trace_event(request_id, "response_returned", duration_ms=_elapsed_ms())
     if own_session:
         db.close()

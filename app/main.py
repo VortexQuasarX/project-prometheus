@@ -58,6 +58,16 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(api_router, prefix="/api/v1")
 
+    from fastapi import Response
+    from prometheus_client import CONTENT_TYPE_LATEST
+
+    from app.observability.metrics import metrics_payload
+
+    @app.get("/metrics", include_in_schema=False)
+    def prometheus_metrics() -> Response:
+        """Prometheus scrape endpoint (standard text exposition format)."""
+        return Response(content=metrics_payload(), media_type=CONTENT_TYPE_LATEST)
+
     @app.get("/")
     def root() -> dict[str, Any]:
         return {
