@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,GET /cache-stats,HTTPError('500 Server Error: Internal Server Error for url: GET /cache-stats'),102,2026-09-02T19:46:44Z,2026-09-02T19:47:41Z
+GET,GET /metrics,HTTPError('500 Server Error: Internal Server Error for url: GET /metrics'),174,2026-09-02T19:46:44Z,2026-09-02T19:47:41Z
+POST,POST /chat,HTTPError('500 Server Error: Internal Server Error for url: POST /chat'),558,2026-09-02T19:46:44Z,2026-09-02T19:47:42Z
