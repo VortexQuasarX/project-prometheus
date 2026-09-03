@@ -1,4 +1,34 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: prometheus
+      POSTGRES_PASSWORD: prometheus_password
+      POSTGRES_DB: prometheus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prometheus -d prometheus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -15,13 +45,21 @@ services:
       EMBEDDING_PROVIDER: mock
       VECTOR_STORE_PROVIDER: local
       CACHE_PROVIDER: local
-      DATABASE_URL: sqlite:////app/data/prometheus.db
+      DATABASE_URL: postgresql://prometheus:prometheus_password@postgres:5432/prometheus
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        SERVER_API_URL: http://api:8000
     ports:
       - "3000:3000"
     environment:
@@ -32,3 +70,7 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

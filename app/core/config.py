@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # --- storage ---
     database_url: str = "sqlite:///./prometheus.db"
+    redis_url: str = ""
     data_dir: str = "data"
 
     # --- models ---

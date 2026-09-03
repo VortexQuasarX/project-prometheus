@@ -1,0 +1,61 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-ingress-only
+  namespace: prometheus-system
+  labels:
+    app.kubernetes.io/part-of: prometheus
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Allow traffic from the ingress controller namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        # Allow traffic from within the prometheus-system namespace
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-inference-internal-only
+  namespace: prometheus-system
+  labels:
+    app.kubernetes.io/part-of: prometheus
+spec:
+  podSelector:
+    matchLabels:
+      app: ml-inference
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Only allow traffic from the API pods within the namespace
+        - podSelector:
+            matchLabels:
+              app: prometheus-api
+      ports:
+        - protocol: TCP
+          port: 8100
+        - protocol: TCP
+          port: 50051
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: prometheus-system
+  labels:
+    app.kubernetes.io/part-of: prometheus
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

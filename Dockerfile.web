@@ -12,6 +12,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ .
+ARG SERVER_API_URL
+ENV SERVER_API_URL=$SERVER_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

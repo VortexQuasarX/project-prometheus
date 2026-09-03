@@ -115,7 +115,7 @@ class UsageRecord(Base):
         ForeignKey("requests.request_id", ondelete="SET NULL"), nullable=True, index=True
     )
     date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)  # UTC day YYYY-MM-DD
-    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     provider: Mapped[str] = mapped_column(String(64), nullable=False, default="mock")
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

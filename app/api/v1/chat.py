@@ -114,28 +114,33 @@ def _store_request_row(
     error_code: str | None = None,
     idempotency_key: str | None = None,
 ) -> None:
-    """Persist the request snapshot row (used for traces + idempotent replay)."""
-    row = Request(
-        request_id=request_id,
-        organization_id=getattr(api_key, "organization_id", None),
-        idempotency_key=idempotency_key,
-        api_key_id=getattr(api_key, "id", None),
-        model=response.get("model"),
-        provider=response.get("provider"),
-        router_decision=response.get("router_decision"),
-        cache_hit=bool(response.get("cache_hit")),
-        guardrail_status=response.get("guardrail_status"),
-        input_tokens=int(response.get("input_tokens") or 0),
-        output_tokens=int(response.get("output_tokens") or 0),
-        latency_ms=int(response.get("latency_ms") or 0),
-        estimated_cost_usd=float(response.get("estimated_cost_usd") or 0.0),
-        cost_saved_usd=float(response.get("cost_saved_usd") or 0.0),
-        evaluation_score=response.get("evaluation_score"),
-        status=status,
-        response_json=response,
-        error_code=error_code,
-    )
-    db.add(row)
+    """Update the placeholder request row with final pipeline results.
+
+    A minimal row is inserted at the start of ``run_chat_pipeline`` so that
+    trace-event and usage-record FK references to ``requests.request_id`` are
+    satisfied immediately (Postgres enforces FKs on INSERT, unlike SQLite).
+    """
+    row = db.scalar(select(Request).where(Request.request_id == request_id))
+    if row is None:
+        row = Request(request_id=request_id)
+        db.add(row)
+    row.organization_id = getattr(api_key, "organization_id", None)
+    row.idempotency_key = idempotency_key
+    row.api_key_id = getattr(api_key, "id", None)
+    row.model = response.get("model")
+    row.provider = response.get("provider")
+    row.router_decision = response.get("router_decision")
+    row.cache_hit = bool(response.get("cache_hit"))
+    row.guardrail_status = response.get("guardrail_status")
+    row.input_tokens = int(response.get("input_tokens") or 0)
+    row.output_tokens = int(response.get("output_tokens") or 0)
+    row.latency_ms = int(response.get("latency_ms") or 0)
+    row.estimated_cost_usd = float(response.get("estimated_cost_usd") or 0.0)
+    row.cost_saved_usd = float(response.get("cost_saved_usd") or 0.0)
+    row.evaluation_score = response.get("evaluation_score")
+    row.status = status
+    row.response_json = response
+    row.error_code = error_code
     db.commit()
 
 
@@ -210,6 +215,12 @@ def run_chat_pipeline(
 
     def _elapsed_ms() -> int:
         return int((time.perf_counter() - started) * 1000)
+
+    # --- Insert placeholder Request row so trace-event / usage-record FKs
+    #     pointing to requests.request_id are satisfied immediately.
+    #     Postgres enforces FK constraints on INSERT (SQLite did not).
+    db.add(Request(request_id=request_id, status="in_progress"))
+    db.commit()
 
     # --- idempotent replay (B5): same key -> same stored response ------------
     if idempotency_key:

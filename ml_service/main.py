@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
@@ -92,12 +92,9 @@ def version() -> dict:
 
 @app.get("/metrics")
 def metrics() -> Any:
-    from prometheus_client import generate_latest
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
-
-from fastapi import Response  # noqa: E402
 
 
 @app.post("/predict")

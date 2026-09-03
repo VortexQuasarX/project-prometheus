@@ -20,6 +20,13 @@ from app.core.config import settings
 _engine_options: dict[str, Any] = {"pool_pre_ping": True}
 if settings.is_sqlite():
     _engine_options["connect_args"] = {"check_same_thread": False}
+else:
+    # Production Postgres pool: 10 persistent + 20 burst = 30 max concurrent.
+    # pool_recycle avoids stale connections behind PgBouncer / Aurora proxy.
+    _engine_options["pool_size"] = 10
+    _engine_options["max_overflow"] = 20
+    _engine_options["pool_timeout"] = 30
+    _engine_options["pool_recycle"] = 1800
 
 engine = create_engine(settings.database_url, **_engine_options)
 

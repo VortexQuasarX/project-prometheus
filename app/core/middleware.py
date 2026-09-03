@@ -65,15 +65,85 @@ class RequestContextMiddleware:
 
 
 class _SlidingWindowStore:
-    """Per-key sliding window of request timestamps (last 60s). Single-process only."""
+    """Per-key sliding window of request timestamps (last 60s).
+
+    Supports two backends:
+    - **In-memory** (default): single-process only, used for local dev/testing.
+    - **Redis sorted sets**: distributed, atomic via Lua script, used when
+      ``settings.redis_url`` is set. Enables multi-worker rate limiting.
+    """
+
+    # Lua script for atomic sliding-window check + record in Redis.
+    # KEYS[1] = rate-limit key, ARGV[1] = window_start, ARGV[2] = now,
+    # ARGV[3] = limit, ARGV[4] = ttl.
+    # Returns {allowed (0/1), remaining, retry_after}.
+    _LUA_SCRIPT = """
+    redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+    local count = redis.call('ZCARD', KEYS[1])
+    local limit = tonumber(ARGV[3])
+    if count >= limit then
+        local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+        local retry = 0
+        if #oldest > 0 then
+            retry = 60.0 - (tonumber(ARGV[2]) - tonumber(oldest[2]))
+            if retry < 0 then retry = 0 end
+        end
+        return {0, 0, tostring(retry)}
+    end
+    redis.call('ZADD', KEYS[1], ARGV[2], ARGV[2] .. ':' .. math.random(1000000))
+    redis.call('EXPIRE', KEYS[1], tonumber(ARGV[4]))
+    local remaining = limit - count - 1
+    return {1, remaining, '0'}
+    """
 
     def __init__(self) -> None:
         self._windows: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
+        self._redis: Any | None = None
+        self._lua_sha: str | None = None
+        self._redis_failed = False
+        self._init_redis()
+
+    def _init_redis(self) -> None:
+        """Try to connect to Redis if configured."""
+        try:
+            redis_url = settings.redis_url
+            if redis_url:
+                import redis as redis_lib
+                self._redis = redis_lib.from_url(
+                    redis_url, decode_responses=True, socket_connect_timeout=2
+                )
+                self._redis.ping()
+                self._lua_sha = self._redis.script_load(self._LUA_SCRIPT)
+        except Exception:
+            # Redis not available — fall back to in-memory silently.
+            self._redis = None
+            self._lua_sha = None
 
     def check(self, key: str, limit: int, now: float | None = None) -> tuple[bool, float]:
         """Record one request; return (allowed, retry_after_seconds)."""
         now = now if now is not None else time.time()
+
+        # Try Redis first
+        if self._redis is not None and self._lua_sha is not None and not self._redis_failed:
+            try:
+                result = self._redis.evalsha(
+                    self._lua_sha,
+                    1,
+                    f"rl:{key}",
+                    str(now - 60.0),
+                    str(now),
+                    str(limit),
+                    "90",  # TTL: 90s > window to avoid premature eviction
+                )
+                allowed = int(result[0]) == 1
+                retry_after = float(result[2])
+                return allowed, retry_after
+            except Exception:
+                # Redis went away mid-flight — degrade gracefully to in-memory.
+                self._redis_failed = True
+
+        # In-memory fallback
         with self._lock:
             window = self._windows.setdefault(key, deque())
             while window and window[0] <= now - 60.0:
@@ -86,6 +156,17 @@ class _SlidingWindowStore:
 
     def remaining(self, key: str, limit: int, now: float | None = None) -> int:
         now = now if now is not None else time.time()
+
+        # Try Redis first
+        if self._redis is not None and not self._redis_failed:
+            try:
+                self._redis.zremrangebyscore(f"rl:{key}", "-inf", str(now - 60.0))
+                count = self._redis.zcard(f"rl:{key}")
+                return max(0, limit - count)
+            except Exception:
+                self._redis_failed = True
+
+        # In-memory fallback
         with self._lock:
             window = self._windows.get(key)
             if not window:

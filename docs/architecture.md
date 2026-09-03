@@ -15,7 +15,8 @@ Prometheus is a single control plane with two sides:
 | LLM | MockLLMProvider (deterministic) | BedrockProvider (lazy boto3, retries+backoff, model-ARN-scoped IAM) |
 | Embeddings | hashlib feature hashing, 256-dim | Amazon Titan embeddings |
 | Vector store | LocalVectorStore (in-memory + JSONL) | PgVectorStore (Aurora Serverless v2, `CREATE EXTENSION vector`) |
-| DB | SQLite (WAL, busy_timeout 5s) | Aurora PostgreSQL 15.x |
+| DB | PostgreSQL 15 (Docker) | Aurora PostgreSQL 15.x |
+| Rate Limiting | Redis 7 (Docker) | ElastiCache Redis 7 |
 | Secrets | .env | Secrets Manager |
 | Scheduler | manual trigger / cron | EventBridge Scheduler (daily 09:00 UTC) → FinOps Lambda |
 

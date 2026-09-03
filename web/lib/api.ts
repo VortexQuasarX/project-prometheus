@@ -19,7 +19,10 @@ import type {
   TraceListItem,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
+const isServer = typeof window === "undefined";
+const API_BASE = isServer
+  ? (process.env.SERVER_API_URL ? `${process.env.SERVER_API_URL}/api/v1` : (process.env.NEXT_PUBLIC_API_URL ?? "/api/v1"))
+  : (process.env.NEXT_PUBLIC_API_URL ?? "/api/v1");
 
 export function getApiKey(): string {
   if (typeof window === "undefined") return "";

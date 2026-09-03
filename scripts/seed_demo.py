@@ -630,6 +630,20 @@ def _seed_eval_run(session: Any) -> dict[str, Any]:
     case_by_id = {case["case_id"]: case for case in cases}
     created = (utcnow() - timedelta(days=1)).replace(hour=16, minute=0, second=0, microsecond=0)
 
+    passed_count = sum(1 for row in fabricated if row[9])
+    run = EvalRun(
+        run_id="eval_demo_seed_001",
+        status="completed",
+        total_cases=len(fabricated),
+        passed_cases=passed_count,
+        failed_cases=len(fabricated) - passed_count,
+        avg_metrics={},  # Will update after loop
+        duration_ms=2450,
+        created_at=created,
+    )
+    session.add(run)
+    session.flush()
+
     for (
         case_id, relevance, groundedness, safety, completeness, cost_efficiency,
         latency_ms, cost_usd, cacheability, passed,
@@ -673,19 +687,7 @@ def _seed_eval_run(session: Any) -> dict[str, Any]:
         )
 
     avg = average_metrics(metrics_list)
-    passed_count = sum(1 for row in fabricated if row[9])
-    session.add(
-        EvalRun(
-            run_id="eval_demo_seed_001",
-            status="completed",
-            total_cases=len(fabricated),
-            passed_cases=passed_count,
-            failed_cases=len(fabricated) - passed_count,
-            avg_metrics=avg,
-            duration_ms=2450,
-            created_at=created,
-        )
-    )
+    run.avg_metrics = avg
     session.commit()
     return {
         "skipped": False,
@@ -904,7 +906,7 @@ def _print_summary(summary: dict[str, Any]) -> None:
     print("        curl -s -X POST http://localhost:8000/api/v1/chat \\")
     print(f"             -H 'X-API-Key: {DEMO_ADMIN_KEY}' \\")
     print("             -H 'Content-Type: application/json' \\")
-    print("             -d '{\"message\": \"What is AI cost governance?\"}'")
+    print("             -d '{\"query\": \"What is AI cost governance?\"}'")
     print(line)
 
 

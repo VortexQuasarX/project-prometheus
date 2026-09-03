@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package inference;
+
+service InferenceService {
+  rpc Predict (PredictRequest) returns (PredictResponse);
+  rpc PredictBatch (BatchPredictRequest) returns (BatchPredictResponse);
+}
+
+message PredictRequest {
+  string text = 1;
+}
+
+message PredictResponse {
+  string complexity_class = 1;
+  float confidence = 2;
+  float latency_ms = 3;
+  string model_version = 4;
+}
+
+message BatchPredictRequest {
+  repeated string texts = 1;
+}
+
+message BatchPredictResponse {
+  repeated PredictResponse predictions = 1;
+  int32 batch_size = 2;
+  float latency_ms = 3;
+}

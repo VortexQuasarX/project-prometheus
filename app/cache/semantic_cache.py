@@ -232,7 +232,12 @@ class SemanticCache:
                 last_hit_at=None,
             )
             session.add(entry)
-            session.commit()
+            try:
+                from sqlalchemy.exc import IntegrityError
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                logger.debug("Cache entry %s inserted concurrently", storage_key)
         except Exception:
             session.rollback()
             raise
