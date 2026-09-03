@@ -46,3 +46,20 @@ Reproduce: `python -m app.ml.train`
 `ml_service/main.py` — `/health`, `/ready`, `/predict`, `/predict/batch`,
 `/metrics`, `/version`; per-class prediction counters and latency histogram.
 Benchmark harness: `benchmark/locustfile.py` pointed at `:8100`.
+
+## ML inference LIVE benchmark + gRPC contract (VERIFIED 2026-09-03)
+
+Live run against uvicorn on 127.0.0.1:8100 (router_model.joblib trained artifact):
+
+- Load: Locust headless, 20 users, 30s (benchmark/locustfile_ml.py)
+- **1,802 requests, 0 failures (0.00%)**
+- Throughput: **61.62 req/s** aggregate (predict/simple 29.6, predict/batch 21.9, predict/complex 10.2)
+- Latency: median 5ms, p90 9ms, p95 10ms, p98 15ms, p99 76ms, max 76ms
+
+gRPC contract (ml_service/grpc_server.py + proto/inference.proto): real socket
+round-trip on 127.0.0.1:50051 via inference_pb2 stubs - Predict and
+PredictBatch verified (proto serialization + servicer logic + model load).
+
+Reproduce: train via `python -c "from app.ml.train import train_router_model; train_router_model()"`,
+serve via `python -m uvicorn ml_service.main:app --port 8100`, load via
+`locust -f benchmark/locustfile_ml.py -u 20 -t 30s --host http://127.0.0.1:8100`
