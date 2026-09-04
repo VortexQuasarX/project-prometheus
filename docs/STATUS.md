@@ -1,7 +1,13 @@
 # Status — VERIFIED / PARTIALLY VERIFIED / NOT VERIFIED / FUTURE
 
-Last audit: 2026-09-02. Every row maps to a command in `docs/BENCHMARKS.md`,
-`docs/LOAD_TESTING.md`, or `pytest tests/ -q`.
+Superseded for enterprise continuation: **`docs/ENTERPRISE_BUILD_STATUS.md`**
+(audit 2026-09-04, git `5858e00`). This table is retained as a historical
+snapshot from 2026-09-02. Where it conflicts with the 2026-09-04 audit
+(especially Postgres+Redis load “100% success” and AWS STS rejection),
+treat the later audit as authoritative.
+
+Last snapshot: 2026-09-02. Every row was intended to map to a command in
+`docs/BENCHMARKS.md`, `docs/LOAD_TESTING.md`, or `pytest tests/ -q`.
 
 | Capability | Status | Evidence |
 |---|---|---|
