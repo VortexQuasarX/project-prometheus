@@ -29,6 +29,8 @@ __all__ = [
     "InMemoryBroker",
     "EventProducer",
     "EventConsumer",
+    "KafkaBroker",
+    "make_broker",
 ]
 
 
@@ -135,3 +137,105 @@ class EventConsumer:
                     # partition until it is retried successfully or DLQ'd
                     break
         return stats
+
+
+class KafkaBroker:
+    """Real Kafka adapter with the same protocol as InMemoryBroker.
+
+    Active when ``settings.kafka_bootstrap_servers`` is configured. One
+    long-lived consumer per (topic, group); every ``consume`` re-seeks to the
+    group's committed offset so failed batches are re-delivered (the pipeline
+    relies on this for retries). Single-partition assumption matches the
+    compose broker (num.partitions=1).
+    """
+
+    def __init__(self, bootstrap_servers: str) -> None:
+        from kafka import KafkaProducer
+
+        self._bs = bootstrap_servers
+        self._producer = KafkaProducer(
+            bootstrap_servers=bootstrap_servers,
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            linger_ms=0,
+        )
+        self._consumers: dict[tuple[str, str], Any] = {}
+        self._buffer: dict[tuple[str, str], list[dict[str, Any]]] = {}
+
+    def send(self, topic: str, value: dict[str, Any]) -> None:
+        self._producer.send(topic, value=value)
+        self._producer.flush(timeout=10)
+
+    def _consumer(self, topic: str, group: str) -> Any:
+        from kafka import KafkaConsumer
+
+        key = (topic, group)
+        if key not in self._consumers:
+            self._consumers[key] = KafkaConsumer(
+                topic,
+                bootstrap_servers=self._bs,
+                group_id=group,
+                auto_offset_reset="earliest",
+                enable_auto_commit=False,
+                consumer_timeout_ms=2000,
+                value_deserializer=lambda b: json.loads(b.decode("utf-8")),
+            )
+        return self._consumers[key]
+
+    def consume(self, topic: str, group: str, count: int = 1) -> list[dict[str, Any]]:
+        key = (topic, group)
+        consumer = self._consumer(topic, group)
+        # First poll completes the group join; without it assignment() is
+        # empty and every subsequent seek/poll is a no-op. Warm-up records
+        # are discarded - the seek below re-reads them deterministically.
+        deadline = time.time() + 20
+        while not consumer.assignment() and time.time() < deadline:
+            consumer.poll(timeout_ms=1000, max_records=max(count, 1))
+        # Restart from the group's committed offset on every batch so that a
+        # failed (uncommitted) record is re-delivered - mirrors InMemoryBroker.
+        for tp in consumer.assignment():
+            committed = consumer.committed(tp)
+            if committed is not None:
+                consumer.seek(tp, committed)
+            else:
+                consumer.seek_to_beginning(tp)
+        out: list[dict[str, Any]] = list(self._buffer.get(key, []))
+        self._buffer[key] = []
+        while len(out) < count:
+            batch = consumer.poll(timeout_ms=2000, max_records=count - len(out))
+            if not batch or not any(batch.values()):
+                break
+            for records in batch.values():
+                for r in records:
+                    rec = {
+                        "value": r.value,
+                        "_offset": r.offset,
+                        "_tp": r.topic,
+                        "_partition": r.partition,
+                    }
+                    if len(out) < count:
+                        out.append(rec)
+                    else:
+                        self._buffer[key].append(rec)
+        return out
+
+    def commit(self, topic: str, group: str, offset: int) -> None:
+
+        consumer = self._consumers.get((topic, group))
+        if consumer is None or not consumer.assignment():
+            return
+        from kafka.structs import OffsetAndMetadata
+
+        try:
+            offsets = {
+                tp: OffsetAndMetadata(offset, "", -1) for tp in consumer.assignment()
+            }
+        except TypeError:  # kafka-python 2.x signature: (offset, metadata)
+            offsets = {tp: OffsetAndMetadata(offset, "") for tp in consumer.assignment()}
+        consumer.commit(offsets=offsets)
+
+
+def make_broker(bootstrap_servers: str = "") -> Any:
+    """Factory: real KafkaBroker when servers configured, else in-memory."""
+    if bootstrap_servers:
+        return KafkaBroker(bootstrap_servers)
+    return InMemoryBroker()

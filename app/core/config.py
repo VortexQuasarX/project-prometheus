@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     # --- storage ---
     database_url: str = "sqlite:///./prometheus.db"
     redis_url: str = ""
+    kafka_bootstrap_servers: str = ""
     data_dir: str = "data"
 
     # --- models ---
