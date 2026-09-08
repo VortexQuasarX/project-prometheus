@@ -29,6 +29,14 @@ resource "aws_security_group" "api" {
   name   = "${var.project}-api-sg"
   vpc_id = aws_vpc.main[0].id
 
+  ingress {
+    description = "Allow HTTPS from VPC to Interface Endpoints"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

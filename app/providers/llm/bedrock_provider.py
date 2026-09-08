@@ -24,10 +24,10 @@ from app.providers.llm.base import LLMProvider, LLMResponse, ProviderUnavailable
 
 __all__ = ["BedrockProvider", "DEFAULT_HAIKU_MODEL_ID", "DEFAULT_SONNET_MODEL_ID"]
 
-#: Claude Haiku-class default (cheap tier) — matching AWS Bedrock model IDs.
-DEFAULT_HAIKU_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
-#: Claude Sonnet-class default (strong tier).
-DEFAULT_SONNET_MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+#: Default cheap tier (Amazon Nova Micro — first party, no marketplace credit-card block).
+DEFAULT_HAIKU_MODEL_ID = "apac.amazon.nova-micro-v1:0"
+#: Default strong tier (Amazon Nova Lite — first party, no marketplace credit-card block).
+DEFAULT_SONNET_MODEL_ID = "apac.amazon.nova-lite-v1:0"
 
 _ANTHROPIC_VERSION = "bedrock-2023-05-31"
 _ATTEMPTS = 2
@@ -44,7 +44,14 @@ class BedrockProvider(LLMProvider):
         region_name: str | None = None,
         timeout_seconds: float = 10.0,
     ) -> None:
-        self._region = region_name or get_setting("aws_region", "us-east-1") or "us-east-1"
+        import os
+        self._region = (
+            region_name
+            or get_setting("bedrock_region", "")
+            or os.environ.get("AWS_REGION", "")
+            or get_setting("aws_region", "")
+            or "ap-south-1"
+        )
         self._timeout = float(timeout_seconds or 10.0)
         self._client: Any = None  # lazy boto3 client
 
@@ -63,32 +70,58 @@ class BedrockProvider(LLMProvider):
         self._ensure_mode()
         client = self._ensure_client()
         model_id = self._resolve_model_id(model)
+        is_nova = "nova" in model_id.lower()
 
-        body: dict[str, Any] = {
-            "anthropic_version": _ANTHROPIC_VERSION,
-            "max_tokens": max(1, int(max_tokens or 500)),
-            "temperature": float(temperature),
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if system:
-            body["system"] = system
+        if is_nova:
+            body: dict[str, Any] = {
+                "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                "inferenceConfig": {
+                    "max_new_tokens": max(1, int(max_tokens or 500)),
+                    "temperature": float(temperature),
+                },
+            }
+            if system:
+                body["system"] = [{"text": system}]
+        else:
+            body: dict[str, Any] = {
+                "anthropic_version": _ANTHROPIC_VERSION,
+                "max_tokens": max(1, int(max_tokens or 500)),
+                "temperature": float(temperature),
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if system:
+                body["system"] = system
 
         started = time.perf_counter()
         payload = self._invoke_with_retries(client, body, model_id)
         latency_ms = max(0, int((time.perf_counter() - started) * 1000))
 
-        content = payload.get("content") or []
-        text = "".join(
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "text"
-        )
-        usage = payload.get("usage") or {}
+        if is_nova:
+            text = (
+                payload.get("output", {})
+                .get("message", {})
+                .get("content", [{}])[0]
+                .get("text", "")
+            )
+            usage = payload.get("usage") or {}
+            input_tokens = int(usage.get("inputTokens", 0) or 0)
+            output_tokens = int(usage.get("outputTokens", 0) or 0)
+        else:
+            content = payload.get("content") or []
+            text = "".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
+            usage = payload.get("usage") or {}
+            input_tokens = int(usage.get("input_tokens", 0) or 0)
+            output_tokens = int(usage.get("output_tokens", 0) or 0)
+
         return LLMResponse(
             text=text,
             model=model_id,
-            input_tokens=int(usage.get("input_tokens", 0) or 0),
-            output_tokens=int(usage.get("output_tokens", 0) or 0),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             latency_ms=latency_ms,
         )
 
@@ -129,10 +162,12 @@ class BedrockProvider(LLMProvider):
 
     def _resolve_model_id(self, model: str) -> str:
         model_lower = (model or "").strip().lower()
+        if model and ("amazon" in model_lower or "anthropic" in model_lower or "apac" in model_lower):
+            return model.strip()
         generic = (get_setting("bedrock_model_id", "") or "").strip()
-        if "cheap" in model_lower or "haiku" in model_lower:
+        if "cheap" in model_lower or "haiku" in model_lower or "micro" in model_lower or "small" in model_lower:
             return (get_setting("bedrock_cheap_model_id", "") or generic or DEFAULT_HAIKU_MODEL_ID)
-        if "strong" in model_lower or "sonnet" in model_lower:
+        if "strong" in model_lower or "sonnet" in model_lower or "lite" in model_lower or "large" in model_lower:
             return (get_setting("bedrock_strong_model_id", "") or generic or DEFAULT_SONNET_MODEL_ID)
         # Unknown/empty model -> strongest sensible gateway default.
         return generic or DEFAULT_SONNET_MODEL_ID

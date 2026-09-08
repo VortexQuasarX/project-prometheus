@@ -305,16 +305,36 @@ def _allowed_models(policy: dict[str, Any]) -> list[str]:
 
 
 def _pick_cheap_model(policy: dict[str, Any]) -> str:
+    from app.providers import get_setting
+
     allowed = _allowed_models(policy)
-    for candidate in ("mock-small", "bedrock-cheap"):
+    provider = (get_setting("llm_provider", "mock") or "mock").strip().lower()
+    if provider == "bedrock":
+        order = ("bedrock-cheap", "apac.amazon.nova-micro-v1:0", "mock-small")
+    elif provider == "openai":
+        order = ("openai-cheap", "gpt-4o-mini", "mock-small")
+    else:
+        order = ("mock-small", "bedrock-cheap")
+
+    for candidate in order:
         if candidate in allowed:
             return candidate
-    return allowed[0] if allowed else "mock-small"
+    return allowed[0] if allowed else "bedrock-cheap"
 
 
 def _pick_strong_model(policy: dict[str, Any]) -> str:
+    from app.providers import get_setting
+
     allowed = _allowed_models(policy)
-    for candidate in ("mock-large", "bedrock-strong"):
+    provider = (get_setting("llm_provider", "mock") or "mock").strip().lower()
+    if provider == "bedrock":
+        order = ("bedrock-strong", "apac.amazon.nova-lite-v1:0", "mock-large")
+    elif provider == "openai":
+        order = ("openai-strong", "gpt-4o", "mock-large")
+    else:
+        order = ("mock-large", "bedrock-strong")
+
+    for candidate in order:
         if candidate in allowed:
             return candidate
     return _pick_cheap_model(policy)

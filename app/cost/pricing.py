@@ -37,6 +37,18 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_read_cost_per_1k_tokens": 0.0030,
         "cache_write_cost_per_1k_tokens": 0.0060,
     },
+    "apac.amazon.nova-micro-v1:0": {
+        "input_cost_per_1k_tokens": 0.000035,
+        "output_cost_per_1k_tokens": 0.000140,
+        "cache_read_cost_per_1k_tokens": 0.000010,
+        "cache_write_cost_per_1k_tokens": 0.000020,
+    },
+    "apac.amazon.nova-lite-v1:0": {
+        "input_cost_per_1k_tokens": 0.000060,
+        "output_cost_per_1k_tokens": 0.000240,
+        "cache_read_cost_per_1k_tokens": 0.000015,
+        "cache_write_cost_per_1k_tokens": 0.000030,
+    },
 }
 
 KNOWN_MODELS: tuple[str, ...] = tuple(MODEL_PRICING)

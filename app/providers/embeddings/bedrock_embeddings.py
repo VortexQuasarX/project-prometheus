@@ -48,7 +48,14 @@ class BedrockEmbedder(Embedder):
             or get_setting("bedrock_embedding_model_id", "")
             or DEFAULT_TITAN_EMBEDDING_MODEL_ID
         )
-        self._region = region_name or get_setting("aws_region", "us-east-1") or "us-east-1"
+        import os
+        self._region = (
+            region_name
+            or get_setting("bedrock_region", "")
+            or os.environ.get("AWS_REGION", "")
+            or get_setting("aws_region", "")
+            or "ap-south-1"
+        )
         self._timeout = float(timeout_seconds or 10.0)
         self._client: Any = None  # lazy boto3 client
 

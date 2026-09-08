@@ -79,13 +79,18 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      APP_ENV               = "production"
-      LLM_PROVIDER          = "mock"
-      EMBEDDING_PROVIDER    = "mock"
-      VECTOR_STORE_PROVIDER = "local"
-      CACHE_PROVIDER        = "local"
-      DATABASE_URL          = "postgresql://prometheus_admin:${random_password.db_master[0].result}@${aws_db_instance.postgres[0].endpoint}/${var.db_name}"
-      ADMIN_API_KEY         = "prometheus-admin"
+      APP_ENV                 = "production"
+      LLM_PROVIDER            = "bedrock"
+      EMBEDDING_PROVIDER      = "bedrock"
+      VECTOR_STORE_PROVIDER   = "pgvector"
+      CACHE_PROVIDER          = "local"
+      DATABASE_URL            = "postgresql://prometheus_admin:${random_password.db_master[0].result}@${aws_db_instance.postgres[0].endpoint}/${var.db_name}"
+      ADMIN_API_KEY           = "prometheus-admin"
+      BEDROCK_REGION          = var.aws_region
+      BEDROCK_CHEAP_MODEL_ID  = "apac.amazon.nova-micro-v1:0"
+      BEDROCK_STRONG_MODEL_ID = "apac.amazon.nova-lite-v1:0"
+      BEDROCK_MODEL_ID        = "apac.amazon.nova-micro-v1:0"
+      CORS_ORIGINS            = "[\"*\"]"
     }
   }
 
