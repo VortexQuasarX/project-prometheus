@@ -26,7 +26,7 @@ const API_BASE = isServer
 
 export function getApiKey(): string {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem("prometheus_api_key") ?? "";
+  return window.localStorage.getItem("prometheus_api_key") || "prometheus-admin";
 }
 
 export function setApiKey(key: string): void {
