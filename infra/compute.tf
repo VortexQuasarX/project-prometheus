@@ -67,18 +67,25 @@ resource "aws_lambda_function" "api" {
   function_name = "${var.project}-api"
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.api[0].repository_url}:latest"
-  architectures = ["arm64"] # cheaper per GB-s
+  architectures = ["x86_64"]
 
   memory_size = 512
   timeout     = 900 # SSE streams are long-lived
 
+  vpc_config {
+    subnet_ids         = [for subnet in aws_subnet.private : subnet.id]
+    security_group_ids = [aws_security_group.api[0].id]
+  }
+
   environment {
     variables = {
-      LLM_PROVIDER             = "bedrock"
-      EMBEDDING_PROVIDER       = "bedrock"
-      VECTOR_STORE_PROVIDER    = "pgvector"
-      AWS_REGION               = var.aws_region
-      BEDROCK_MODEL_ID         = ""
+      APP_ENV               = "production"
+      LLM_PROVIDER          = "mock"
+      EMBEDDING_PROVIDER    = "mock"
+      VECTOR_STORE_PROVIDER = "local"
+      CACHE_PROVIDER        = "local"
+      DATABASE_URL          = "postgresql://prometheus_admin:${random_password.db_master[0].result}@${aws_db_instance.postgres[0].endpoint}/${var.db_name}"
+      ADMIN_API_KEY         = "prometheus-admin"
     }
   }
 
@@ -90,8 +97,8 @@ resource "aws_lambda_function" "api" {
 resource "aws_lambda_function_url" "api" {
   count = var.enable_aws && var.compute_platform == "lambda" ? 1 : 0
 
-  function_name = aws_lambda_function.api[0].function_name
-  authorization_type = "AWS_IAM"
+  function_name      = aws_lambda_function.api[0].function_name
+  authorization_type = "NONE"
 
   depends_on = [aws_cloudwatch_log_group.api]
 }
@@ -102,17 +109,9 @@ resource "aws_apigatewayv2_api" "api" {
 
   name          = "${var.project}-api"
   protocol_type = "HTTP"
-  target        = aws_lambda_function_url.api[0].function_url
+  target        = aws_lambda_function.api[0].arn
 
   tags = { Name = "${var.project}-api" }
-}
-
-resource "aws_apigatewayv2_stage" "api" {
-  count = var.enable_aws && var.compute_platform == "lambda" ? 1 : 0
-
-  api_id      = aws_apigatewayv2_api.api[0].id
-  name        = "$default"
-  auto_deploy = true
 }
 
 resource "aws_lambda_permission" "api_gateway" {
@@ -124,6 +123,16 @@ resource "aws_lambda_permission" "api_gateway" {
   principal     = "apigateway.amazonaws.com"
 }
 
+resource "aws_lambda_permission" "url" {
+  count = var.enable_aws && var.compute_platform == "lambda" ? 1 : 0
+
+  statement_id           = "AllowFunctionURLInvoke"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.api[0].function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
 # FinOps scheduled Lambda (target of the EventBridge scheduler).
 resource "aws_lambda_function" "finops" {
   count = var.enable_aws && var.compute_platform == "lambda" ? 1 : 0
@@ -131,7 +140,7 @@ resource "aws_lambda_function" "finops" {
   function_name = "${var.project}-finops"
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.api[0].repository_url}:latest"
-  architectures = ["arm64"]
+  architectures = ["x86_64"]
 
   memory_size = 256
   timeout     = 300

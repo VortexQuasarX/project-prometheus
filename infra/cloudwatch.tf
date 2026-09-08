@@ -68,8 +68,6 @@ resource "aws_cloudwatch_dashboard" "overview" {
       }
     ]
   })
-
-  tags = { Name = "${var.project}-dashboard" }
 }
 
 resource "aws_cloudwatch_metric_alarm" "budget_critical" {

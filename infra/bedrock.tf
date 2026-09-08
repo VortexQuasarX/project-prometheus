@@ -8,8 +8,6 @@
 # -----------------------------------------------------------------------------
 data "aws_bedrock_foundation_models" "available" {
   count = var.enable_aws ? 1 : 0
-
-  region = var.aws_region
 }
 
 # Example of what NOT to create:

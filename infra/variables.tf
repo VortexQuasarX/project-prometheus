@@ -9,9 +9,15 @@ variable "enable_aws" {
 }
 
 variable "aws_region" {
-  description = "AWS region (matches .env.example)."
+  description = "AWS region (matches .env.example and CLI profile)."
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
+}
+
+variable "aws_profile" {
+  description = "AWS CLI profile used for deployment."
+  type        = string
+  default     = "prometheus"
 }
 
 variable "project" {
@@ -83,5 +89,5 @@ variable "db_name" {
 variable "backup_retention_days" {
   description = "Aurora backup retention (days)."
   type        = number
-  default     = 7
+  default     = 1
 }

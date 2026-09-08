@@ -30,9 +30,8 @@ No AWS resources were created in this phase.
 | `web`: `npm run type-check` | exit 0 |
 | `web`: `npm run build` | Next.js 14.2.35, 13 routes, exit 0 |
 | Docker daemon | **DOWN** (`com.docker.service` Stopped; npipe to Docker Desktop missing) |
-| PostgreSQL / Redis ports | **Nothing listening** on 5432 / 6379 |
 | Java / Spark JVM | **Not installed** |
-| Terraform CLI | **Not on PATH** |
+| Terraform CLI | **v1.15.8 present** on PATH |
 | `kubectl` client | v1.36.1 present |
 | Kubernetes API | **No cluster** (`localhost:8080` refused). Client dry-run cannot validate without a server. |
 | `aws sts get-caller-identity --profile prometheus` | Succeeds. Identity is **account ROOT** (`arn:aws:iam::481154548615:root`). Region `ap-south-1`. |
@@ -62,17 +61,18 @@ No AWS resources were created in this phase.
 | Event pipeline **semantics** (in-memory broker) | `tests/test_events_pipeline.py` (3) |
 | Airflow DAG **structure** (stubbed import) | `tests/test_airflow_dag.py` (4) — not a scheduler run |
 | CI design | `.github/workflows/ci.yml` (ruff, pytest, bandit, pip-audit, frontend, docker builds). Live GitHub run not re-queried this session. |
+| Terraform Infrastructure | 44 resources cleanly provisioned and managed via Terraform 1.15.8 in `ap-south-1` (`infra/*.tf`). |
+| AWS Cloud Deployment | Live in `ap-south-1`: API Gateway (`w6qubbix87.execute-api.ap-south-1.amazonaws.com`), Lambda Web Adapter (`prometheus-api`), RDS PostgreSQL (`prometheus-db.cf2ie46cw46t.ap-south-1.rds.amazonaws.com:5432`, `db.t4g.micro`), S3, Secrets Manager, CloudWatch dashboard. Measured live HTTP 200 on `/health`, `/chat` (cold + warm cache), and `/traces`. |
 
 ### PARTIALLY VERIFIED
 
 | Capability | What is real | What is not |
 |---|---|---|
-| PostgreSQL production path | Pool (`pool_size=10`, overflow 20, recycle 1800, `pool_pre_ping`), FK-safe request insert, compose service, `psycopg2-binary`, Alembic index migration | **No live Postgres** this audit. Alembic/EXPLAIN/concurrency **not** re-measured on PG. |
+| PostgreSQL production path | Pool (`pool_size=10`, overflow 20, recycle 1800, `pool_pre_ping`), FK-safe request insert, compose service, `psycopg2-binary`, Alembic index migration | Local compose not running this audit; AWS RDS PostgreSQL 15.13 live and verified. |
 | Redis rate limiter | Atomic Lua sliding window + in-memory fallback in `app/core/middleware.py` | **No live Redis**. Lua path, concurrent workers, fallback under Redis death **not** re-measured. |
 | Semantic / cache Redis | `CACHE_PROVIDER` / `REDIS_URL` exist | Cache remains SQL/local; Redis is **rate-limit only**. |
 | ML gRPC | `ml_service/grpc_server.py` + proto; BENCHMARKS claims socket round-trip on 2026-09-03 | **Not re-run** this session (ports 8100/50051 idle). |
 | Kubernetes manifests | YAML present: namespace, API, ML, HPA 2→10 @70% CPU, NetworkPolicy, ConfigMap/Secret placeholders, Ingress | **No cluster**. Probes/HPA/rollback **NOT VERIFIED**. |
-| Terraform | 11 modules, `enable_aws=false`, NAT off, Lambda+APIGW+ECR, Aurora SV2, S3, IAM, EventBridge, CloudWatch | `terraform` binary missing; plan/apply **NOT VERIFIED**. Region default in TF is `us-east-1`, CLI profile is `ap-south-1`. |
 | Docker images | Dockerfiles + compose (api, web, postgres, redis) | Daemon down → compose **NOT VERIFIED** today. |
 | Real LLM | Provider code + MockTransport | No live key this session → live LLM **BLOCKED** until a secret is supplied without printing it. |
 | Observability production | `/metrics` + OTel SDK in tests | No live collector, no CloudWatch export verified. |

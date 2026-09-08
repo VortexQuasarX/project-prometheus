@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "api_policy" {
     sid       = "WriteOwnLogs"
     effect    = "Allow"
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = [aws_cloudwatch_log_group.api[0].arn + ":*", aws_cloudwatch_log_group.finops[0].arn + ":*"]
+    resources = ["${aws_cloudwatch_log_group.api[0].arn}:*", "${aws_cloudwatch_log_group.finops[0].arn}:*"]
   }
 
   statement {
@@ -104,4 +104,11 @@ resource "aws_iam_role_policy" "finops_scheduler" {
       Resource = aws_lambda_function.finops[0].arn
     }]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_vpc" {
+  count = var.enable_aws ? 1 : 0
+
+  role       = aws_iam_role.api[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }

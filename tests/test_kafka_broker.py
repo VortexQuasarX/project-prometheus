@@ -13,7 +13,11 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.events_pipeline.kafka_pipeline import InMemoryBroker, KafkaBroker, make_broker  # noqa: E402
+from app.events_pipeline.kafka_pipeline import (  # noqa: E402
+    InMemoryBroker,
+    KafkaBroker,
+    make_broker,
+)
 
 
 class FakeTopicPartition:

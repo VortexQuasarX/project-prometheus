@@ -4,12 +4,12 @@
 # -----------------------------------------------------------------------------
 output "api_url" {
   description = "Public API base URL."
-  value       = var.enable_aws ? (var.compute_platform == "lambda" ? aws_apigatewayv2_stage.api[0].invoke_url : null) : null
+  value       = var.enable_aws ? (var.compute_platform == "lambda" ? aws_apigatewayv2_api.api[0].api_endpoint : null) : null
 }
 
 output "db_endpoint" {
-  description = "Aurora cluster writer endpoint."
-  value       = var.enable_aws ? aws_rds_cluster.aurora[0].endpoint : null
+  description = "PostgreSQL database endpoint."
+  value       = var.enable_aws ? aws_db_instance.postgres[0].endpoint : null
 }
 
 output "ecr_repository_url" {
@@ -30,4 +30,9 @@ output "secrets_arns" {
 output "cloudwatch_dashboard_url" {
   description = "CloudWatch dashboard URL."
   value = var.enable_aws ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.overview[0].dashboard_name}" : null
+}
+
+output "lambda_function_url" {
+  description = "Direct Lambda Function URL."
+  value       = var.enable_aws && var.compute_platform == "lambda" ? aws_lambda_function_url.api[0].function_url : null
 }

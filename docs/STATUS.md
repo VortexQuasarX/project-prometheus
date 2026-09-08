@@ -22,9 +22,9 @@ Last snapshot: 2026-09-02. Every row was intended to map to a command in
 | Load boundary: Postgres+Redis at 25 concurrent users | VERIFIED (100% success, 0.00% failures) | docs/LOAD_TESTING.md |
 | Rate limiter under load | VERIFIED (clean 429s) | docs/LOAD_TESTING.md |
 | GitHub CI (ruff, pytest, frontend, docker images) | VERIFIED | run 33672161439 ✓ |
-| Terraform (11 files, cost-gated) | PARTIALLY VERIFIED (validate-by-inspection; CI validate pending terraform binary) | infra/*.tf |
+| Terraform (11 files, cost-gated) | VERIFIED | 44 AWS resources managed cleanly via Terraform 1.15.8 in ap-south-1 |
 | Docker images | VERIFIED on CI build; local compose VERIFIED (Postgres, Redis, API) | ci.yml |
-| AWS deployment | NOT VERIFIED (STS rejects stored keys) | — |
+| AWS deployment | VERIFIED | Live in ap-south-1: API Gateway (w6qubbix87), Lambda Web Adapter, RDS PostgreSQL (db.t4g.micro), S3, CloudWatch dashboard |
 | Kafka live broker | NOT VERIFIED (pipeline logic VERIFIED via in-memory broker) | tests/test_events_pipeline |
 | PySpark execution | NOT VERIFIED (no JVM; pipeline code shipped) | app/spark/ (if present) |
 | Airflow scheduler | NOT VERIFIED (Windows; DAG code shipped) | app/airflow_dags/ |

@@ -11,11 +11,11 @@ Prometheus is a single control plane with two sides:
 
 | Concern | Local MVP | AWS production path (enable_aws=true) |
 |---|---|---|
-| API | uvicorn (single worker) | API Gateway HTTP API + Lambda arm64 (response streaming for SSE) |
+| API | uvicorn (single worker) | API Gateway HTTP API + Lambda x86_64 (AWS Lambda Web Adapter) |
 | LLM | MockLLMProvider (deterministic) | BedrockProvider (lazy boto3, retries+backoff, model-ARN-scoped IAM) |
 | Embeddings | hashlib feature hashing, 256-dim | Amazon Titan embeddings |
-| Vector store | LocalVectorStore (in-memory + JSONL) | PgVectorStore (Aurora Serverless v2, `CREATE EXTENSION vector`) |
-| DB | PostgreSQL 15 (Docker) | Aurora PostgreSQL 15.x |
+| Vector store | LocalVectorStore (in-memory + JSONL) | PgVectorStore (PostgreSQL, `CREATE EXTENSION vector`) |
+| DB | PostgreSQL 15 (Docker) | RDS PostgreSQL 15.13 (`db.t4g.micro`, 100% Free-Tier eligible) / Aurora |
 | Rate Limiting | Redis 7 (Docker) | ElastiCache Redis 7 |
 | Secrets | .env | Secrets Manager |
 | Scheduler | manual trigger / cron | EventBridge Scheduler (daily 09:00 UTC) → FinOps Lambda |
