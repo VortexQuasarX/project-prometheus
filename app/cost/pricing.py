@@ -73,12 +73,122 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_read_cost_per_1k_tokens": 0.0,
         "cache_write_cost_per_1k_tokens": 0.0,
     },
+    # Meta Llama 3
+    "meta.llama3-8b-instruct-v1:0": {
+        "input_cost_per_1k_tokens": 0.000300,
+        "output_cost_per_1k_tokens": 0.000600,
+        "cache_read_cost_per_1k_tokens": 0.000075,
+        "cache_write_cost_per_1k_tokens": 0.000150,
+    },
+    "meta.llama3-70b-instruct-v1:0": {
+        "input_cost_per_1k_tokens": 0.002650,
+        "output_cost_per_1k_tokens": 0.003500,
+        "cache_read_cost_per_1k_tokens": 0.000660,
+        "cache_write_cost_per_1k_tokens": 0.001320,
+    },
+    # Google Gemma 3
+    "google.gemma-3-4b-it": {
+        "input_cost_per_1k_tokens": 0.000080,
+        "output_cost_per_1k_tokens": 0.000160,
+        "cache_read_cost_per_1k_tokens": 0.000020,
+        "cache_write_cost_per_1k_tokens": 0.000040,
+    },
+    "google.gemma-3-12b-it": {
+        "input_cost_per_1k_tokens": 0.000250,
+        "output_cost_per_1k_tokens": 0.000500,
+        "cache_read_cost_per_1k_tokens": 0.000060,
+        "cache_write_cost_per_1k_tokens": 0.000120,
+    },
+    "google.gemma-3-27b-it": {
+        "input_cost_per_1k_tokens": 0.000550,
+        "output_cost_per_1k_tokens": 0.001100,
+        "cache_read_cost_per_1k_tokens": 0.000140,
+        "cache_write_cost_per_1k_tokens": 0.000280,
+    },
+    # DeepSeek
+    "deepseek.v3-v1:0": {
+        "input_cost_per_1k_tokens": 0.000500,
+        "output_cost_per_1k_tokens": 0.001500,
+        "cache_read_cost_per_1k_tokens": 0.000125,
+        "cache_write_cost_per_1k_tokens": 0.000250,
+    },
+    # Mistral AI
+    "mistral.mistral-7b-instruct-v0:2": {
+        "input_cost_per_1k_tokens": 0.000150,
+        "output_cost_per_1k_tokens": 0.000200,
+        "cache_read_cost_per_1k_tokens": 0.000040,
+        "cache_write_cost_per_1k_tokens": 0.000080,
+    },
+    "mistral.mixtral-8x7b-instruct-v0:1": {
+        "input_cost_per_1k_tokens": 0.000450,
+        "output_cost_per_1k_tokens": 0.000700,
+        "cache_read_cost_per_1k_tokens": 0.000110,
+        "cache_write_cost_per_1k_tokens": 0.000220,
+    },
+    "mistral.mistral-large-2402-v1:0": {
+        "input_cost_per_1k_tokens": 0.004000,
+        "output_cost_per_1k_tokens": 0.012000,
+        "cache_read_cost_per_1k_tokens": 0.001000,
+        "cache_write_cost_per_1k_tokens": 0.002000,
+    },
+    "mistral.ministral-3-3b-instruct": {
+        "input_cost_per_1k_tokens": 0.000080,
+        "output_cost_per_1k_tokens": 0.000160,
+        "cache_read_cost_per_1k_tokens": 0.000020,
+        "cache_write_cost_per_1k_tokens": 0.000040,
+    },
+    "mistral.ministral-3-8b-instruct": {
+        "input_cost_per_1k_tokens": 0.000150,
+        "output_cost_per_1k_tokens": 0.000300,
+        "cache_read_cost_per_1k_tokens": 0.000040,
+        "cache_write_cost_per_1k_tokens": 0.000080,
+    },
+    "mistral.ministral-3-14b-instruct": {
+        "input_cost_per_1k_tokens": 0.000300,
+        "output_cost_per_1k_tokens": 0.000600,
+        "cache_read_cost_per_1k_tokens": 0.000075,
+        "cache_write_cost_per_1k_tokens": 0.000150,
+    },
+    # Qwen
+    "qwen.qwen3-32b-v1:0": {
+        "input_cost_per_1k_tokens": 0.000400,
+        "output_cost_per_1k_tokens": 0.000800,
+        "cache_read_cost_per_1k_tokens": 0.000100,
+        "cache_write_cost_per_1k_tokens": 0.000200,
+    },
+    "qwen.qwen3-coder-30b-a3b-v1:0": {
+        "input_cost_per_1k_tokens": 0.000400,
+        "output_cost_per_1k_tokens": 0.000800,
+        "cache_read_cost_per_1k_tokens": 0.000100,
+        "cache_write_cost_per_1k_tokens": 0.000200,
+    },
+    # NVIDIA Nemotron
+    "nvidia.nemotron-nano-9b-v2": {
+        "input_cost_per_1k_tokens": 0.000180,
+        "output_cost_per_1k_tokens": 0.000360,
+        "cache_read_cost_per_1k_tokens": 0.000045,
+        "cache_write_cost_per_1k_tokens": 0.000090,
+    },
+    # Z.AI GLM
+    "zai.glm-4.7-flash": {
+        "input_cost_per_1k_tokens": 0.000050,
+        "output_cost_per_1k_tokens": 0.000100,
+        "cache_read_cost_per_1k_tokens": 0.000012,
+        "cache_write_cost_per_1k_tokens": 0.000025,
+    },
 }
 
 KNOWN_MODELS: tuple[str, ...] = tuple(MODEL_PRICING)
 
 # Default expensive set (D3/B8): policy JSON may override via expensive_models.
-EXPENSIVE_MODELS: frozenset[str] = frozenset({"mock-large", "bedrock-strong", "apac.amazon.nova-pro-v1:0"})
+EXPENSIVE_MODELS: frozenset[str] = frozenset({
+    "mock-large",
+    "bedrock-strong",
+    "apac.amazon.nova-pro-v1:0",
+    "meta.llama3-70b-instruct-v1:0",
+    "mistral.mistral-large-2402-v1:0",
+    "google.gemma-3-27b-it",
+})
 
 _ZERO_PRICE: dict[str, float] = {
     "input_cost_per_1k_tokens": 0.0,

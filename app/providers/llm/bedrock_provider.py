@@ -70,33 +70,25 @@ class BedrockProvider(LLMProvider):
         self._ensure_mode()
         client = self._ensure_client()
         model_id = self._resolve_model_id(model)
-        is_nova = "nova" in model_id.lower()
 
-        if is_nova:
-            body: dict[str, Any] = {
+        started = time.perf_counter()
+        
+        # 1. Attempt Bedrock Converse API (Universal cross-vendor API)
+        try:
+            converse_kwargs: dict[str, Any] = {
+                "modelId": model_id,
                 "messages": [{"role": "user", "content": [{"text": prompt}]}],
                 "inferenceConfig": {
-                    "max_new_tokens": max(1, int(max_tokens or 500)),
+                    "maxTokens": max(1, int(max_tokens or 500)),
                     "temperature": float(temperature),
                 },
             }
             if system:
-                body["system"] = [{"text": system}]
-        else:
-            body: dict[str, Any] = {
-                "anthropic_version": _ANTHROPIC_VERSION,
-                "max_tokens": max(1, int(max_tokens or 500)),
-                "temperature": float(temperature),
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            if system:
-                body["system"] = system
+                converse_kwargs["system"] = [{"text": system}]
 
-        started = time.perf_counter()
-        payload = self._invoke_with_retries(client, body, model_id)
-        latency_ms = max(0, int((time.perf_counter() - started) * 1000))
+            payload = self._converse_with_retries(client, converse_kwargs)
+            latency_ms = max(0, int((time.perf_counter() - started) * 1000))
 
-        if is_nova:
             text = (
                 payload.get("output", {})
                 .get("message", {})
@@ -106,24 +98,68 @@ class BedrockProvider(LLMProvider):
             usage = payload.get("usage") or {}
             input_tokens = int(usage.get("inputTokens", 0) or 0)
             output_tokens = int(usage.get("outputTokens", 0) or 0)
-        else:
-            content = payload.get("content") or []
-            text = "".join(
-                block.get("text", "")
-                for block in content
-                if isinstance(block, dict) and block.get("type") == "text"
-            )
-            usage = payload.get("usage") or {}
-            input_tokens = int(usage.get("input_tokens", 0) or 0)
-            output_tokens = int(usage.get("output_tokens", 0) or 0)
 
-        return LLMResponse(
-            text=text,
-            model=model_id,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            latency_ms=latency_ms,
-        )
+            return LLMResponse(
+                text=text,
+                model=model_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                latency_ms=latency_ms,
+            )
+        except Exception as conv_exc:
+            # Fall back to legacy invoke_model if converse is not supported for this model ID
+            is_nova = "nova" in model_id.lower()
+            if is_nova:
+                body: dict[str, Any] = {
+                    "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                    "inferenceConfig": {
+                        "max_new_tokens": max(1, int(max_tokens or 500)),
+                        "temperature": float(temperature),
+                    },
+                }
+                if system:
+                    body["system"] = [{"text": system}]
+            else:
+                body = {
+                    "anthropic_version": _ANTHROPIC_VERSION,
+                    "max_tokens": max(1, int(max_tokens or 500)),
+                    "temperature": float(temperature),
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                if system:
+                    body["system"] = system
+
+            payload = self._invoke_with_retries(client, body, model_id)
+            latency_ms = max(0, int((time.perf_counter() - started) * 1000))
+
+            if is_nova:
+                text = (
+                    payload.get("output", {})
+                    .get("message", {})
+                    .get("content", [{}])[0]
+                    .get("text", "")
+                )
+                usage = payload.get("usage") or {}
+                input_tokens = int(usage.get("inputTokens", 0) or 0)
+                output_tokens = int(usage.get("outputTokens", 0) or 0)
+            else:
+                content = payload.get("content") or []
+                text = "".join(
+                    block.get("text", "")
+                    for block in content
+                    if isinstance(block, dict) and block.get("type") == "text"
+                )
+                usage = payload.get("usage") or {}
+                input_tokens = int(usage.get("input_tokens", 0) or 0)
+                output_tokens = int(usage.get("output_tokens", 0) or 0)
+
+            return LLMResponse(
+                text=text,
+                model=model_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                latency_ms=latency_ms,
+            )
 
     # ------------------------------------------------------------------
     # internals
@@ -161,12 +197,16 @@ class BedrockProvider(LLMProvider):
         return self._client
 
     def _resolve_model_id(self, model: str) -> str:
-        model_lower = (model or "").strip().lower()
-        # Pass through any fully-qualified model IDs (vendor-prefixed or inference profile).
-        if model and ("amazon" in model_lower or "anthropic" in model_lower
-                       or "apac" in model_lower or "global" in model_lower
-                       or "titan" in model_lower):
-            return model.strip()
+        model_clean = (model or "").strip()
+        model_lower = model_clean.lower()
+        # Pass through any model containing vendor dots/colons or known provider names
+        known_prefixes = (
+            "amazon", "anthropic", "apac", "global", "meta", "google",
+            "deepseek", "mistral", "qwen", "nvidia", "zai", "moonshot", "titan"
+        )
+        if model_clean and ("." in model_clean or ":" in model_clean or any(p in model_lower for p in known_prefixes)):
+            return model_clean
+
         generic = (get_setting("bedrock_model_id", "") or "").strip()
         # Cheap tier: Nova Micro
         if "cheap" in model_lower or "haiku" in model_lower or "micro" in model_lower or "small" in model_lower:
@@ -180,13 +220,26 @@ class BedrockProvider(LLMProvider):
         # Unknown/empty model -> strongest sensible gateway default.
         return generic or DEFAULT_SONNET_MODEL_ID
 
-    def _invoke_with_retries(self, client: Any, body: dict[str, Any], model_id: str) -> dict[str, Any]:
-        """Invoke Bedrock with exponential backoff (2 attempts, 0.2/0.4s).
+    def _converse_with_retries(self, client: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Invoke Bedrock Converse API with exponential backoff."""
+        last_exc: BaseException | None = None
+        for attempt in range(_ATTEMPTS):
+            try:
+                return client.converse(**kwargs)
+            except Exception as exc:
+                classified = classify_boto_error(exc)
+                if isinstance(classified, TransientProviderError):
+                    last_exc = classified
+                    if attempt < _ATTEMPTS - 1:
+                        time.sleep(_BACKOFF_BASE_S * (2**attempt))
+                    continue
+                raise classified from None
+        raise ProviderUnavailableError(
+            f"Bedrock converse request failed after {_ATTEMPTS} attempts: {last_exc}"
+        )
 
-        Only transient failures (throttles, timeouts, 5xx) are retried;
-        credential/config errors surface immediately as
-        ``ProviderUnavailableError``.
-        """
+    def _invoke_with_retries(self, client: Any, body: dict[str, Any], model_id: str) -> dict[str, Any]:
+        """Invoke Bedrock invoke_model with exponential backoff."""
         last_exc: BaseException | None = None
         for attempt in range(_ATTEMPTS):
             try:
