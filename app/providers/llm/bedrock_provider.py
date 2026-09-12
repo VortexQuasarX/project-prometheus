@@ -162,11 +162,19 @@ class BedrockProvider(LLMProvider):
 
     def _resolve_model_id(self, model: str) -> str:
         model_lower = (model or "").strip().lower()
-        if model and ("amazon" in model_lower or "anthropic" in model_lower or "apac" in model_lower):
+        # Pass through any fully-qualified model IDs (vendor-prefixed or inference profile).
+        if model and ("amazon" in model_lower or "anthropic" in model_lower
+                       or "apac" in model_lower or "global" in model_lower
+                       or "titan" in model_lower):
             return model.strip()
         generic = (get_setting("bedrock_model_id", "") or "").strip()
+        # Cheap tier: Nova Micro
         if "cheap" in model_lower or "haiku" in model_lower or "micro" in model_lower or "small" in model_lower:
             return (get_setting("bedrock_cheap_model_id", "") or generic or DEFAULT_HAIKU_MODEL_ID)
+        # Premium tier: Nova Pro (most capable)
+        if "pro" in model_lower or "premium" in model_lower:
+            return (get_setting("bedrock_premium_model_id", "") or "apac.amazon.nova-pro-v1:0")
+        # Strong tier: Nova Lite
         if "strong" in model_lower or "sonnet" in model_lower or "lite" in model_lower or "large" in model_lower:
             return (get_setting("bedrock_strong_model_id", "") or generic or DEFAULT_SONNET_MODEL_ID)
         # Unknown/empty model -> strongest sensible gateway default.

@@ -49,12 +49,36 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_read_cost_per_1k_tokens": 0.000015,
         "cache_write_cost_per_1k_tokens": 0.000030,
     },
+    "apac.amazon.nova-pro-v1:0": {
+        "input_cost_per_1k_tokens": 0.000800,
+        "output_cost_per_1k_tokens": 0.003200,
+        "cache_read_cost_per_1k_tokens": 0.000200,
+        "cache_write_cost_per_1k_tokens": 0.000400,
+    },
+    "global.amazon.nova-2-lite-v1:0": {
+        "input_cost_per_1k_tokens": 0.000060,
+        "output_cost_per_1k_tokens": 0.000240,
+        "cache_read_cost_per_1k_tokens": 0.000015,
+        "cache_write_cost_per_1k_tokens": 0.000030,
+    },
+    "amazon.titan-embed-text-v2:0": {
+        "input_cost_per_1k_tokens": 0.000020,
+        "output_cost_per_1k_tokens": 0.0,
+        "cache_read_cost_per_1k_tokens": 0.0,
+        "cache_write_cost_per_1k_tokens": 0.0,
+    },
+    "amazon.titan-embed-image-v1": {
+        "input_cost_per_1k_tokens": 0.000080,
+        "output_cost_per_1k_tokens": 0.0,
+        "cache_read_cost_per_1k_tokens": 0.0,
+        "cache_write_cost_per_1k_tokens": 0.0,
+    },
 }
 
 KNOWN_MODELS: tuple[str, ...] = tuple(MODEL_PRICING)
 
 # Default expensive set (D3/B8): policy JSON may override via expensive_models.
-EXPENSIVE_MODELS: frozenset[str] = frozenset({"mock-large", "bedrock-strong"})
+EXPENSIVE_MODELS: frozenset[str] = frozenset({"mock-large", "bedrock-strong", "apac.amazon.nova-pro-v1:0"})
 
 _ZERO_PRICE: dict[str, float] = {
     "input_cost_per_1k_tokens": 0.0,

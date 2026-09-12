@@ -310,7 +310,9 @@ def _pick_cheap_model(policy: dict[str, Any]) -> str:
     allowed = _allowed_models(policy)
     provider = (get_setting("llm_provider", "mock") or "mock").strip().lower()
     if provider == "bedrock":
-        order = ("bedrock-cheap", "apac.amazon.nova-micro-v1:0", "mock-small")
+        order = ("bedrock-cheap", "apac.amazon.nova-micro-v1:0",
+                 "global.amazon.nova-2-lite-v1:0", "apac.amazon.nova-lite-v1:0",
+                 "mock-small")
     elif provider == "openai":
         order = ("openai-cheap", "gpt-4o-mini", "mock-small")
     else:
@@ -328,7 +330,9 @@ def _pick_strong_model(policy: dict[str, Any]) -> str:
     allowed = _allowed_models(policy)
     provider = (get_setting("llm_provider", "mock") or "mock").strip().lower()
     if provider == "bedrock":
-        order = ("bedrock-strong", "apac.amazon.nova-lite-v1:0", "mock-large")
+        order = ("bedrock-strong", "apac.amazon.nova-pro-v1:0",
+                 "apac.amazon.nova-lite-v1:0", "global.amazon.nova-2-lite-v1:0",
+                 "mock-large")
     elif provider == "openai":
         order = ("openai-strong", "gpt-4o", "mock-large")
     else:
