@@ -12,7 +12,7 @@
 
 **An enterprise-grade, real-time AI governance gateway and FinOps control plane that enforces deterministic policy budgets, semantic caching, PII masking, circuit-breaker kill-switches, and autonomous agent orchestration across 44+ foundation models with $0.00 idle compute costs.**
 
-[Live Dashboard](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com) • [Live API Gateway](https://w6qubbix87.execute-api.ap-south-1.amazonaws.com) • [Architecture](#-system-architecture) • [12-Stage Pipeline](#-the-12-stage-governance-pipeline) • [Model Catalog](#-universal-model-catalog-zero-credit-card) • [Quickstart](#-local-quickstart)
+[Live Dashboard](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com) • [Developer SDKs](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers) • [Workspaces & Chargeback](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces) • [Multi-Model Arena](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground) • [Live API Gateway](https://w6qubbix87.execute-api.ap-south-1.amazonaws.com) • [Architecture](#-system-architecture) • [Enterprise Suite](#-enterprise-capabilities--developer-ecosystem)
 
 </div>
 
@@ -22,9 +22,14 @@
 
 Prometheus is fully deployed to AWS in the **`ap-south-1` (Mumbai)** region using **44 Terraform resources**. Every layer of the stack is 100% live and runs on real cloud services.
 
-| Interface / Component | Production Endpoint | Architecture & Service |
+| Interface / Component | Production Endpoint | Architecture & Capabilities |
 |---|---|---|
 | **Web Dashboard** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com) | Next.js 14 Standalone via AWS Lambda Web Adapter |
+| **Developer Portal & SDKs** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers) | Drop-in Python & TypeScript SDKs, live cURL & CLI generator |
+| **Multi-Tenant Workspaces** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces) | Departmental quotas, model whitelists, 1-click CSV chargeback export |
+| **Arena & Playground** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground) | Dual-model benchmark split view, real-time SSE streaming, TTFT/TPS |
+| **Traces APM Waterfall** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/traces`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/traces) | Sub-millisecond 12-stage duration Gantt chart with filter pills |
+| **Adversarial Red Team** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/redteam`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/redteam) | Live OWASP Top 10 automated jailbreak fuzzing suite |
 | **API Gateway (HTTP API)** | [`https://w6qubbix87.execute-api.ap-south-1.amazonaws.com`](https://w6qubbix87.execute-api.ap-south-1.amazonaws.com) | Amazon API Gateway HTTP API v2 (CORS enabled) |
 | **Direct Lambda URL** | [`https://n4cmh77bmu7i5ave64bo2bpyqm0gaajy.lambda-url.ap-south-1.on.aws`](https://n4cmh77bmu7i5ave64bo2bpyqm0gaajy.lambda-url.ap-south-1.on.aws) | Container-based Lambda (`prometheus-api`) |
 | **Relational & Vector Store** | `prometheus-db.cf2ie46cw46t.ap-south-1.rds.amazonaws.com:5432` | Amazon RDS PostgreSQL 15.13 + `pgvector` |
@@ -208,6 +213,97 @@ Measurements taken from the live production infrastructure in `ap-south-1`:
 
 ---
 
+## ⚡ Enterprise Capabilities & Developer Ecosystem
+
+Project Prometheus bridges the gap between raw LLM APIs and mission-critical enterprise deployment through a unified control plane.
+
+### 1. 🛠️ Developer Portal & Drop-In SDKs (`/developers`)
+Prometheus delivers strict drop-in parity with the OpenAI API standard, allowing enterprise engineering teams to onboard in under 5 minutes without rewriting application logic.
+
+* **Python SDK (Drop-In OpenAI Client):**
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1",
+    api_key=os.environ.get("PROMETHEUS_API_KEY", "prometheus-admin")
+)
+
+# Automated governance, FinOps caching & semantic routing happens automatically
+response = client.chat.completions.create(
+    model="auto-router",  # Automatically picks optimal cost/performance model
+    messages=[
+        {"role": "system", "content": "You are a specialized enterprise AI assistant."},
+        {"role": "user", "content": "Analyze our AWS CloudWatch bill for anomalies."}
+    ],
+    temperature=0.2,
+    stream=True  # Real-time token streaming with sub-100ms TTFT
+)
+
+for chunk in response:
+    print(chunk.choices[0].delta.content or "", end="")
+```
+
+* **TypeScript / Node.js SDK:**
+```typescript
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  baseURL: "https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1",
+  apiKey: process.env.PROMETHEUS_API_KEY || "prometheus-admin",
+});
+
+const completion = await openai.chat.completions.create({
+  model: "llama-3.3-70b-instruct:free",
+  messages: [{ role: "user", content: "Optimize this PostgreSQL query plan." }]
+});
+```
+
+* **Prometheus Developer CLI:**
+```bash
+# Run head-to-head dual model benchmark from terminal
+prometheus test --arena
+
+# Stream live production request traces in real-time
+prometheus traces --tail -n 20
+
+# Emergency circuit-breaker to halt all LLM egress traffic
+prometheus kill-switch --engage
+
+# Execute automated OWASP Top 10 jailbreak fuzzing
+prometheus redteam --fuzz-all
+```
+
+### 2. 🏢 Multi-Tenant Workspaces & FinOps Chargeback (`/workspaces`)
+Isolate spend, quotas, and permissions across organizational departments:
+* **Departmental Budget Partitions:** Independent hard quotas for Engineering ($2,500/mo), Product AI ($1,200/mo), and Risk/Compliance ($800/mo).
+* **Dynamic Model Whitelisting:** Restrict sensitive departments to specific verified models (e.g. `llama-3.3-70b-instruct:free`, `deepseek-r1:free`).
+* **1-Click Chargeback Invoice Export:** Downloadable RFC 4180 CSV reports for corporate accounting and internal cross-billing.
+* **Global Header Tenant Pill:** Dynamic department indicator for rapid workspace switching.
+
+### 3. ⚔️ Multi-Model Arena & Real-Time Token Velocity Telemetry (`/playground`)
+* **Head-to-Head Arena:** Benchmark two models side-by-side with identical prompts. Automated **Arena Verdict** banner computes speedup percentages and cost differences.
+* **Token Velocity Telemetry:** Real-time 6-column telemetry bar tracking:
+  * **TTFT (Time To First Token):** Sub-100ms first-token latency measurement.
+  * **Throughput Velocity (tok/s):** Real-time generation velocity badge.
+  * **Micro-Dollar Cost:** Exact cost tracking down to 6 decimal places ($0.000000).
+* **Stream Tokens Toggle:** Toggle between buffered JSON responses and real-time Server-Sent Events (SSE) typewriter rendering.
+
+### 4. 📊 12-Stage APM Waterfall Gantt (`/traces/[request_id]`)
+* Sub-millisecond Gantt chart tracking execution time across all 12 pipeline stages (`auth`, `rate_limit`, `budget`, `guardrails`, `routing`, `semantic_cache`, `retrieval`, `llm_inference`, `evaluation`, `cost_logging`, `audit_persistence`).
+* Active search and status filter pills (`All`, `Cache Hits`, `>1s Slow`, `Errors/Blocked`).
+
+### 5. 🛡️ Security, Quorum Approvals & Compliance (`/approvals`, `/audit`, `/redteam`)
+* **Multi-Stage Quorum Sign-Off:** High-risk routing policy changes require dual sign-off (FinOps Admin + Security Lead) stamped with immutable SHA-256 hashes.
+* **SOC2, HIPAA & ISO 27001 Audit Export:** Dedicated 1-click **Export CSV** and **Export JSON** formatted for regulatory compliance reviews.
+* **Automated Adversarial Red Teaming:** Interactive fuzzing harness testing against OWASP LLM01 (Prompt Injection), LLM02 (Sensitive Information Disclosure), and LLM06 (Excessive Agency).
+
+### 6. 🤖 Interactive Agent DAG Workflow Visualizer (`/agents/runs/[run_id]`)
+* ReactFlow-powered visual Directed Acyclic Graph (DAG) with animated glowing token-flow edges, per-step latency badges, and tool input/output inspectors.
+
+---
+
 ## 🚀 Local Quickstart
 
 ### Prerequisites
@@ -313,28 +409,43 @@ curl -X GET "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/trac
 
 ```
 project-prometheus/
-├── app/                        # Core backend FastAPI application
-│   ├── api/v1/                 # REST endpoints (chat, policies, ingest, traces, agents)
-│   ├── core/                   # Security, settings, logging, telemetry
+├── app/                        # Core backend FastAPI 12-stage governance pipeline
+│   ├── api/v1/                 # REST endpoints (chat, policies, ingest, traces, agents, redteam)
+│   ├── core/                   # Security, settings, logging, telemetry, RBAC
 │   ├── cost/                   # Token pricing matrix & FinOps estimators
 │   ├── guardrails/             # PII masking, regex rules, injection filters
-│   ├── providers/              # Universal Bedrock Converse, Titan, & Mock providers
-│   ├── cache/                  # pgvector semantic cache implementation
+│   ├── providers/              # Universal Bedrock Converse, Titan, OpenRouter & Mock providers
+│   ├── cache/                  # pgvector & in-memory semantic cache implementation
 │   ├── rag/                    # Vector chunking, indexing, & retrieval engine
 │   └── agents/                 # FinOps & Reliability autonomous agents
-├── web/                        # Next.js 14 Web UI Dashboard
-│   ├── app/                    # App router (Playground, Policies, Budget, Traces, Audits)
-│   ├── components/             # Tailwind & Radix UI visual components
-│   └── lib/                    # API clients and state hooks
-├── infra/                      # Terraform AWS Cloud Infrastructure
-│   ├── main.tf                 # VPC, Lambda, API Gateway, RDS, Secrets Manager
-│   ├── variables.tf            # Region, instance sizing, environment inputs
-│   └── outputs.tf              # Live endpoints and resource identifiers
-├── docs/                       # Architecture specs, system design, runbooks
+├── web/                        # Next.js 14 Enterprise Web UI Console
+│   ├── app/                    # App router
+│   │   ├── developers/         # Developer Portal, Python/TypeScript SDKs, CLI reference
+│   │   ├── workspaces/         # Multi-tenant departmental quotas & chargeback invoices
+│   │   ├── playground/         # Multi-Model Arena & real-time token streaming telemetry
+│   │   ├── traces/             # 12-Stage APM waterfall Gantt chart & active search
+│   │   ├── redteam/            # OWASP Top 10 automated jailbreak attack fuzzer
+│   │   ├── approvals/          # Multi-stage dual-signature quorum sign-offs
+│   │   ├── audit/              # SOC2, HIPAA, ISO 27001 audit ledger & CSV/JSON export
+│   │   ├── budget/             # FinOps webhooks, burn rate & 30-day forecast
+│   │   ├── evaluations/        # Golden sets & shadow traffic mirroring (2%)
+│   │   ├── policies/           # Policy dry-run sandbox impact simulator
+│   │   └── settings/           # Edge provider health & latency ping monitor
+│   ├── components/             # ReactFlow DAG, TraceWaterfall, Cobe WebGL Globe, UI primitives
+│   └── lib/                    # Typed API clients, state hooks, and utilities
+├── infra/                      # Terraform AWS Cloud Infrastructure & Kubernetes
+│   ├── main.tf                 # Root orchestration
+│   ├── compute.tf              # Lambda serverless functions, ECR, API Gateway HTTP API v2
+│   ├── aurora.tf               # Amazon RDS PostgreSQL 15.13 with pgvector extension
+│   ├── s3.tf                   # Private encrypted S3 bucket for RAG corpus
+│   ├── vpc.tf                  # Multi-AZ VPC, subnets, route tables, security groups
+│   ├── bedrock.tf              # IAM roles and Bedrock model execution policies
+│   ├── cloudwatch.tf           # APM dashboards, alarms, log retention policies
+│   └── k8s/                    # Production Kubernetes manifests (HPA, NetworkPolicy, Deployments)
 ├── tests/                      # Pytest suite (unit, integration, load, security)
 ├── Dockerfile.api              # Multi-stage production container with Lambda Web Adapter
 ├── Dockerfile.web              # Standalone Next.js production container
-└── docker-compose.yml          # Local development stack (App + PG + Redis)
+└── docker-compose.yml          # Local development stack (App + PostgreSQL + Redis)
 ```
 
 ---

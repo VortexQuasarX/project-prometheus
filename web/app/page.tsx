@@ -1,126 +1,144 @@
-"use client";
-import Link from "next/link";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell
-} from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
-import { Activity, Zap, CheckCircle2, AlertCircle, ArrowRight, Wallet, Target, Clock } from "lucide-react";
+import { Activity, Zap, CheckCircle2, ArrowRight, Wallet, Target, Clock, Bot, ShieldAlert } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, EmptyState, MetricCard, Progress, Skeleton, statusTone, Table, Td, Th, AnimatedCounter } from "@/components/ui";
-import { getBudget, getCacheStats, getCostReport, getMetrics, getPendingActions } from "@/lib/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Progress, Badge, Skeleton, EmptyState, statusTone, Table, Th, Td, AnimatedCounter } from "@/components/ui";
 import { formatMs, formatPercent, formatUsd } from "@/lib/utils";
+import Link from "next/link";
+import { getMetrics, getCostReport, getCacheStats, getBudget, getPendingActions } from "@/lib/api";
+
+function MetricCard({ title, value, sub, icon, variants, label, className }: any) {
+  return (
+    <motion.div variants={variants} className={`glass-card p-5 flex flex-col justify-between h-full group gradient-border relative ${className}`}>
+      <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition duration-300 group-hover:opacity-100 dark:hidden" style={{ background: "radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(0,0,0,0.03), transparent 40%)" }} />
+      <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition duration-300 group-hover:opacity-100 hidden dark:block" style={{ background: "radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 40%)" }} />
+      
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label || title}</p>
+        <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-110 transition-transform">{icon}</div>
+      </div>
+      <div className="relative z-10">
+        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">{value}</h3>
+        <p className="text-[10px] font-bold text-muted-foreground/80 mt-2 uppercase tracking-wide">{sub}</p>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function DashboardPage() {
-  const metrics = useQuery({ queryKey: ["metrics"], queryFn: getMetrics, refetchInterval: 30_000, retry: 0 });
-  const cost = useQuery({ queryKey: ["cost-report"], queryFn: getCostReport, refetchInterval: 30_000, retry: 0 });
-  const cache = useQuery({ queryKey: ["cache-stats"], queryFn: getCacheStats, refetchInterval: 30_000, retry: 0 });
-  const budget = useQuery({ queryKey: ["budget"], queryFn: getBudget, refetchInterval: 30_000, retry: 0 });
-  const pending = useQuery({ queryKey: ["pending-actions"], queryFn: getPendingActions, refetchInterval: 20_000, retry: 0 });
+  const { theme } = useTheme();
+  const metrics = useQuery({ queryKey: ["metrics"], queryFn: getMetrics, refetchInterval: 30000 });
+  const cost = useQuery({ queryKey: ["cost-report"], queryFn: getCostReport, refetchInterval: 30000 });
+  const cache = useQuery({ queryKey: ["cache-stats"], queryFn: getCacheStats, refetchInterval: 30000 });
+  const budget = useQuery({ queryKey: ["budget"], queryFn: getBudget, refetchInterval: 30000 });
+  const pending = useQuery({ queryKey: ["pending-actions"], queryFn: getPendingActions, refetchInterval: 30000 });
 
-  const modelData = (cost.data?.model_wise ?? []).map((m) => ({ name: m.model, cost: Number(m.cost_usd.toFixed(4)) }));
-  const dailyBudget = budget.data?.daily_budget_usd ?? 1;
+  const dailyBudget = budget.data?.daily_budget_usd ?? 0;
   const dailySpend = budget.data?.daily_spend_usd ?? 0;
   
-  // Custom colors for chart based on cost magnitude
-  const getBarColor = (value: number) => {
-    if (value > dailyBudget * 0.5) return "hsl(0, 72%, 51%)"; // destructive
-    if (value > dailyBudget * 0.2) return "hsl(38, 92%, 50%)"; // warning
-    return "url(#colorGradient)"; // primary gradient
-  };
+  const modelData = (cost.data?.model_wise ?? [])
+    .map((m: any) => ({ name: m.model, cost: Number(m.cost_usd.toFixed(4)) }))
+    .sort((a: any, b: any) => b.cost - a.cost);
 
   return (
     <PageShell>
-      <motion.div variants={{hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } }}} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {metrics.isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32" />)
-        ) : metrics.isError ? (
-          <motion.div variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}} className="md:col-span-2 lg:col-span-4">
-            <EmptyState title="Backend Offline" hint="Start the API using `make api` — displaying cached layout." icon={<AlertCircle size={48} />} />
-          </motion.div>
-        ) : (
-          <>
-            <MetricCard 
-              variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}}
-              label="Total Cost" 
-              value={<AnimatedCounter value={metrics.data?.total_cost_usd ?? 0} prefix="$" decimals={4} />} 
-              sub={<span>cache saved <span className="text-emerald-500 font-semibold">{formatUsd(cost.data?.cache_savings_usd, 4)}</span></span>}
-              icon={<Wallet size={20} />}
-              gradient
-            />
-            <MetricCard 
-              variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}}
-              label="Total Requests" 
-              value={<AnimatedCounter value={metrics.data?.total_requests ?? 0} />} 
-              sub={`${metrics.data?.failed_requests ?? 0} failed requests`}
-              icon={<Activity size={20} />}
-            />
-            <MetricCard 
-              variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}}
-              label="Cache Hit Rate" 
-              value={<AnimatedCounter value={(metrics.data?.cache_hit_rate ?? 0) * 100} suffix="%" decimals={1} />} 
-              sub={`${cache.data?.entry_count ?? 0} active entries`}
-              icon={<Target size={20} />}
-            />
-            <MetricCard 
-              variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}}
-              label="Avg Latency" 
-              value={<AnimatedCounter value={metrics.data?.avg_latency_ms ?? 0} suffix=" ms" />} 
-              sub="across all providers"
-              icon={<Clock size={20} />}
-            />
-          </>
-        )}
-      </motion.div>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground mb-2">Command Center</h2>
+        <p className="text-sm text-muted-foreground">Live telemetry and governance overview.</p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle>Budget utilization</CardTitle>
-            <CardDescription>Daily cap enforcement</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center space-y-6">
-            {budget.isLoading ? <Skeleton className="h-32" /> : (
-              <>
-                <div className="text-center">
-                  <div className="text-4xl font-bold tracking-tight mb-2">
-                    <AnimatedCounter value={dailySpend} prefix="$" decimals={4} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    of <span className="text-foreground font-medium">{formatUsd(dailyBudget, 2)}</span> daily budget
-                  </p>
-                </div>
-                
-                <Progress value={dailyBudget > 0 ? dailySpend / dailyBudget : 0} className="h-3" />
-                
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Monthly Trend</p>
-                    <p className="font-semibold">{formatUsd(budget.data?.monthly_spend_usd, 2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Kill Switch</p>
-                    <Badge tone={statusTone(budget.data?.kill_switch_mode)}>{budget.data?.kill_switch_mode}</Badge>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <motion.div 
+        variants={{hidden: {}, show: { transition: { staggerChildren: 0.1 } }}} 
+        initial="hidden" animate="show" 
+        className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4 lg:gap-6 mb-8"
+      >
+        {/* Total Cost - Col Span 4 */}
+        <div className="col-span-1 md:col-span-3 xl:col-span-4 flex">
+          <MetricCard 
+            variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }}}
+            label="Total Compute Cost" 
+            value={<AnimatedCounter value={cost.data?.total_spend_usd ?? 0} prefix="$" decimals={4} />} 
+            sub="Across all AWS Bedrock APIs"
+            icon={<Wallet size={20} />}
+            className="w-full bg-gradient-to-br from-primary/10 via-transparent to-transparent border-primary/20 shadow-[0_0_40px_rgba(59,130,246,0.1)]"
+          />
+        </div>
 
-        <motion.div initial={{opacity:0, scale:0.98}} animate={{opacity:1, scale:1}} transition={{duration:0.5, delay:0.2}} className="lg:col-span-2 relative">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-xl">Model-wise spend</CardTitle>
-              <CardDescription>Accumulated cost per foundation model</CardDescription>
+        {/* Small Metrics Subgrid - Col Span 4 */}
+        <div className="col-span-1 md:col-span-3 xl:col-span-4 grid grid-cols-2 gap-4 lg:gap-6">
+          <MetricCard 
+            variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }}}
+            label="Total Requests" 
+            value={<AnimatedCounter value={metrics.data?.total_requests ?? 0} />} 
+            sub={`${metrics.data?.failed_requests ?? 0} failed`}
+            icon={<Activity size={18} />}
+          />
+          <MetricCard 
+            variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }}}
+            label="Cache Hit Rate" 
+            value={<AnimatedCounter value={(metrics.data?.cache_hit_rate ?? 0) * 100} suffix="%" decimals={1} />} 
+            sub={`${cache.data?.entry_count ?? 0} entries`}
+            icon={<Target size={18} />}
+          />
+          <MetricCard 
+            variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }}}
+            label="Avg Latency" 
+            value={<AnimatedCounter value={metrics.data?.avg_latency_ms ?? 0} suffix="ms" />} 
+            sub="Avg Across"
+            icon={<Clock size={18} />}
+          />
+          <MetricCard 
+            variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }}}
+            label="Active Agents" 
+            value={<AnimatedCounter value={4} />} 
+            sub="Governance loop"
+            icon={<Bot size={18} />}
+          />
+        </div>
+
+        {/* Budget Utilization - Col Span 4 */}
+        <div className="col-span-1 md:col-span-6 xl:col-span-4 flex">
+          <Card className="w-full flex flex-col group">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Budget Utilization</CardTitle>
+                  <CardDescription>Daily cap enforcement</CardDescription>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                  <ShieldAlert size={18} />
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="flex-1 flex flex-col justify-end pt-4 space-y-5">
+              <div className="text-center relative">
+                <div className="text-5xl font-extrabold tracking-tighter mb-1 gradient-text">
+                  <AnimatedCounter value={dailySpend} prefix="$" decimals={2} />
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  of {formatUsd(dailyBudget, 0)} daily limit
+                </p>
+              </div>
+              <Progress value={dailyBudget > 0 ? dailySpend / dailyBudget : 0} className="h-4 shadow-inner" />
+              <div className="flex justify-between items-center pt-3 border-t border-border/60">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kill Switch</p>
+                <Badge tone={statusTone(budget.data?.kill_switch_mode)} className="px-3 py-1 text-[10px]">{budget.data?.kill_switch_mode || "Disabled"}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chart - Col Span 8 */}
+        <div className="col-span-1 md:col-span-6 xl:col-span-8 flex h-[400px]">
+          <Card className="w-full flex flex-col">
+            <CardHeader>
+              <CardTitle className="text-lg">Model-wise spend</CardTitle>
+              <CardDescription>Accumulated cost per foundation model over time</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-[300px]">
               {modelData.length === 0 ? (
                 <EmptyState title="No spend recorded" hint="Run a few playground queries to generate telemetry." />
               ) : (
@@ -128,84 +146,87 @@ export default function DashboardPage() {
                   <AreaChart data={modelData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.5}/>
-                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={theme === "dark" ? "#7c3aed" : "#3b82f6"} stopOpacity={0.6}/>
+                        <stop offset="95%" stopColor={theme === "dark" ? "#06b6d4" : "#8b5cf6"} stopOpacity={0}/>
                       </linearGradient>
-                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                      </filter>
                     </defs>
-                    <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} dy={10} stroke="rgba(255,255,255,0.4)" />
-                    <YAxis fontSize={11} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${v}`} dx={-10} stroke="rgba(255,255,255,0.4)" />
+                    <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} dy={10} stroke={theme === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)"} />
+                    <YAxis fontSize={11} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${v}`} dx={-10} stroke={theme === "dark" ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)"} />
                     <Tooltip 
                       formatter={(v) => formatUsd(Number(v), 4)} 
-                      contentStyle={{ backgroundColor: 'rgba(15,20,30,0.8)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '13px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                      itemStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: theme === "dark" ? "rgba(15,20,30,0.9)" : "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", borderColor: theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", borderRadius: "16px", fontSize: "13px", padding: "12px 16px", boxShadow: theme === "dark" ? "0 20px 40px rgba(0,0,0,0.5)" : "0 20px 40px rgba(0,0,0,0.08)" }}
+                      itemStyle={{ color: theme === "dark" ? "#fff" : "#0f172a", fontWeight: "bold" }}
                     />
-                    <Area type="monotone" dataKey="cost" stroke="url(#colorGradient)" strokeWidth={3} fillOpacity={1} fill="url(#colorGradient)" filter="url(#glow)" />
+                    <Area type="monotone" dataKey="cost" stroke={theme === "dark" ? "#a855f7" : "#6366f1"} strokeWidth={4} fillOpacity={1} fill="url(#colorGradient)" />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
-        </motion.div>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Pending Approvals</CardTitle>
-              <CardDescription>Human-in-the-loop governance</CardDescription>
-            </div>
-            <Badge tone={(pending.data?.items ?? []).length > 0 ? "amber" : "gray"}>
-              {(pending.data?.items ?? []).length} pending
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            {(pending.data?.items ?? []).length === 0 ? (
-              <EmptyState title="All caught up" hint="No FinOps actions waiting for approval." icon={<CheckCircle2 size={32} />} />
-            ) : (
-              <Table>
-                <thead><tr><Th>Action</Th><Th className="text-right">Est. Savings</Th><Th>Risk</Th></tr></thead>
-                <tbody>
-                  {(pending.data?.items ?? []).map((a) => (
-                    <tr key={a.action_id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
-                      <Td><Link className="text-accent font-medium hover:underline flex items-center gap-2" href="/approvals">{a.title} <ArrowRight size={14} /></Link></Td>
-                      <Td className="tabular text-right text-emerald-500 font-medium">{formatUsd(a.expected_monthly_saving_usd, 2)}</Td>
-                      <Td><Badge tone={statusTone(a.risk_level === "low" ? "normal" : "critical")}>{a.risk_level}</Badge></Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Optimization Recommendations</CardTitle>
-            <CardDescription>Live insights from FinOps agent telemetry</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(budget.data?.recommendations ?? []).slice(0, 4).map((r, i) => (
-              <div key={r.action_id} className="flex items-center justify-between rounded-xl bg-background border border-border/40 p-4 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                    <Zap size={16} />
-                  </div>
-                  <span className="font-medium text-sm">{r.title}</span>
-                </div>
-                <Badge tone="green" className="tabular">{formatUsd(r.expected_monthly_saving_usd, 2)}/mo</Badge>
+        {/* Pending Approvals & AI Recommendations - Col Span 4 */}
+        <div className="col-span-1 md:col-span-6 xl:col-span-4 flex flex-col gap-4 lg:gap-6">
+          <Card className="flex-1 flex flex-col">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Approvals</CardTitle>
+                <Badge tone={(pending.data?.items ?? []).length > 0 ? "amber" : "gray"}>
+                  {(pending.data?.items ?? []).length} pending
+                </Badge>
               </div>
-            ))}
-            {(budget.data?.recommendations ?? []).length === 0 ? (
-               <EmptyState title="Architecture Optimized" hint="The FinOps agent hasn't identified any new savings." icon={<Zap size={32} />} />
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent className="flex-1">
+              {(pending.data?.items ?? []).length === 0 ? (
+                <EmptyState title="All caught up" hint="No actions pending." icon={<CheckCircle2 size={24} />} />
+              ) : (
+                <div className="space-y-3">
+                  {(pending.data?.items ?? []).slice(0,3).map((a: any) => (
+                    <Link href="/approvals" key={a.action_id} className="block group">
+                      <div className="p-3 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-sm font-semibold group-hover:text-primary transition-colors">{a.title}</p>
+                          <Badge tone={statusTone(a.risk_level === "low" ? "normal" : "critical")} className="text-[10px] uppercase">{a.risk_level}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>Est. Savings</span>
+                          <span className="text-emerald-500 font-bold tabular">{formatUsd(a.expected_monthly_saving_usd, 2)}</span>
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1 flex flex-col bg-gradient-to-br from-accent/5 via-transparent to-transparent">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">AI Optimization</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1">
+              {(budget.data?.recommendations ?? []).length === 0 ? (
+                 <EmptyState title="Highly Optimized" hint="No new savings found." icon={<Zap size={24} />} />
+              ) : (
+                <div className="space-y-3">
+                  {(budget.data?.recommendations ?? []).slice(0, 3).map((r: any) => (
+                    <div key={r.action_id} className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-background/50 hover:shadow-md transition-shadow group">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-accent/15 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <Zap size={14} />
+                        </div>
+                        <span className="font-semibold text-sm">{r.title}</span>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-500 tabular">{formatUsd(r.expected_monthly_saving_usd, 0)}/mo</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+      </motion.div>
     </PageShell>
   );
 }

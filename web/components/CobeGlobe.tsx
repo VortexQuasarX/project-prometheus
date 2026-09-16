@@ -18,11 +18,11 @@ export function CobeGlobe() {
       theta: 0.3,
       dark: 1,
       diffuse: 1.2,
-      mapSamples: 24000,
+      mapSamples: 16000,
       mapBrightness: 6,
-      baseColor: [0.05, 0.05, 0.08],
+      baseColor: [1, 1, 1],
       markerColor: [0.1, 0.8, 1],
-      glowColor: [0.1, 0.1, 0.2],
+      glowColor: [1, 1, 1],
       markers: [
         { location: [38.03, -78.47], size: 0.06 },
         { location: [45.83, -119.7], size: 0.06 },
@@ -30,7 +30,8 @@ export function CobeGlobe() {
         { location: [35.68, 139.69], size: 0.06 },
         { location: [19.07, 72.87], size: 0.1 },
       ],
-      onRender: (state) => {
+      // @ts-ignore
+      onRender: (state: any) => {
         state.phi = phi;
         phi += 0.005;
       }

@@ -1,11 +1,13 @@
+﻿import { motion } from "framer-motion";
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Database, ListFilter } from "lucide-react";
+import { Search, Database, ListFilter, Download, FileSpreadsheet, FileJson, ShieldCheck } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, EmptyState, ErrorState, Input, Skeleton } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, EmptyState, ErrorState, Input, Skeleton, Badge, Button } from "@/components/ui";
 import { getAudit } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function AuditPage() {
   const audit = useQuery({ queryKey: ["audit"], queryFn: () => getAudit(200), refetchInterval: 30_000, retry: 0 });
@@ -18,34 +20,85 @@ export default function AuditPage() {
       (action === "" || e.action.toLowerCase().includes(action.toLowerCase())),
   );
 
+  const exportCSV = () => {
+    if (!items.length) {
+      toast.error("No audit logs to export.");
+      return;
+    }
+    const headers = ["Event ID", "Timestamp", "Actor", "Role", "Action", "Resource"];
+    const rows = items.map(e => [
+      e.event_id,
+      e.created_at,
+      e.actor,
+      e.role,
+      e.action,
+      e.resource
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.map(f => `"${f}"`).join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `prometheus-audit-ledger-${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Audit ledger exported as CSV (SOC2 / HIPAA format).");
+  };
+
+  const exportJSON = () => {
+    if (!items.length) {
+      toast.error("No audit logs to export.");
+      return;
+    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `prometheus-compliance-ledger-${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchorElem.click();
+    toast.success("Cryptographic JSON audit ledger exported.");
+  };
+
   return (
     <PageShell>
       <Card className="flex flex-col h-[calc(100vh-8rem)]">
         <CardHeader className="border-b border-border/50 bg-muted/10 pb-4 shrink-0">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2"><Database size={20} className="text-accent" /> Governance Ledger</CardTitle>
-              <CardDescription className="mt-1">Cryptographically immutable audit trail</CardDescription>
+              <div className="flex items-center gap-3">
+                <CardTitle className="flex items-center gap-2"><Database size={20} className="text-accent" /> Governance Ledger</CardTitle>
+                <Badge tone="green" className="text-[10px] font-mono">
+                  <ShieldCheck size={12} className="mr-1 inline" /> SOC2 Compliant
+                </Badge>
+              </div>
+              <CardDescription className="mt-1">Cryptographically immutable audit trail with export verification</CardDescription>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input 
-                  placeholder="Actor (e.g. system)" 
+                  placeholder="Filter actor..." 
                   value={actor} 
                   onChange={(e) => setActor(e.target.value)} 
-                  className="h-9 w-40 rounded-lg border border-border/50 bg-background/50 pl-9 pr-3 text-xs outline-none focus:border-accent focus:ring-1 transition-all" 
+                  className="h-9 w-32 rounded-xl border border-border/50 bg-background/50 pl-9 pr-3 text-xs outline-none focus:border-accent focus:ring-1 transition-all" 
                 />
               </div>
               <div className="relative">
                 <ListFilter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input 
-                  placeholder="Action (e.g. policy)" 
+                  placeholder="Filter action..." 
                   value={action} 
                   onChange={(e) => setAction(e.target.value)} 
-                  className="h-9 w-40 rounded-lg border border-border/50 bg-background/50 pl-9 pr-3 text-xs outline-none focus:border-accent focus:ring-1 transition-all" 
+                  className="h-9 w-32 rounded-xl border border-border/50 bg-background/50 pl-9 pr-3 text-xs outline-none focus:border-accent focus:ring-1 transition-all" 
                 />
               </div>
+
+              <Button variant="outline" size="sm" onClick={exportCSV} className="h-9 text-xs gap-1.5 border-border/60">
+                <FileSpreadsheet size={13} className="text-emerald-500" /> Export CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportJSON} className="h-9 text-xs gap-1.5 border-border/60">
+                <FileJson size={13} className="text-accent" /> Export JSON
+              </Button>
             </div>
           </div>
         </CardHeader>

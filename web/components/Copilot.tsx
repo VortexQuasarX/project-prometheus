@@ -30,15 +30,17 @@ export function Copilot() {
   };
 
   return (
-    <>
+    <div className="relative">
       <Button
-        onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-accent hover:bg-accent/90 border-2 border-accent-foreground/10 transition-transform ${isOpen ? 'scale-0' : 'scale-100'} z-40`}
+        variant="outline"
+        onClick={() => setIsOpen(!isOpen)}
+        className="gap-2 h-9 border-accent/20 bg-accent/5 hover:bg-accent/10 text-accent relative overflow-hidden group"
       >
-        <Sparkles size={24} className="text-white" />
+        <Sparkles size={16} className="text-accent group-hover:animate-pulse" />
+        <span className="hidden sm:inline">Ask AI</span>
       </Button>
 
-      <div className={`fixed bottom-6 right-6 w-[400px] shadow-2xl transition-all duration-300 transform origin-bottom-right z-50 ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}>
+      <div className={`absolute top-12 right-0 w-[400px] shadow-2xl transition-all duration-200 transform origin-top-right z-[100] ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'}`}>
         <Card className="border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl flex flex-col h-[500px]">
           <CardHeader className="border-b border-border/50 bg-muted/30 py-3 px-4 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -98,6 +100,6 @@ export function Copilot() {
           </div>
         </Card>
       </div>
-    </>
+    </div>
   );
 }

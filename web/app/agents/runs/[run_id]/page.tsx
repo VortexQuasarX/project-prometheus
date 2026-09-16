@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -7,10 +8,13 @@ import { PageShell } from "@/components/page-shell";
 import { Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, JsonViewer, Skeleton, statusTone } from "@/components/ui";
 import { getAgentRun } from "@/lib/api";
 import { formatMs, formatTime } from "@/lib/utils";
+import { AgentRunDAG } from "@/components/AgentRunDAG";
+import { useState } from "react";
 
 export default function AgentRunDetailPage() {
   const params = useParams<{ run_id: string }>();
   const runId = params.run_id as string;
+  const [viewMode, setViewMode] = useState<"dag" | "list">("dag");
   const run = useQuery({ queryKey: ["agent-run", runId], queryFn: () => getAgentRun(runId), retry: 0 });
 
   let body = <div className="space-y-4"><Skeleton className="h-48" /><Skeleton className="h-96" /></div>;
@@ -67,11 +71,27 @@ export default function AgentRunDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Card>
-              <CardHeader className="border-b border-border/50 bg-muted/10">
-                <CardTitle className="flex items-center gap-2 text-base"><Terminal size={16} className="text-accent" /> Tool Execution Trace</CardTitle>
+              <CardHeader className="flex-row items-center justify-between border-b border-border/50 bg-muted/10 pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><Terminal size={16} className="text-accent" /> Agent Workflow Execution</CardTitle>
+                <div className="flex items-center bg-background/50 border border-border/50 p-1 rounded-xl text-xs">
+                  <button
+                    onClick={() => setViewMode("dag")}
+                    className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === "dag" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Interactive DAG
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === "list" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Step List
+                  </button>
+                </div>
               </CardHeader>
-              <CardContent className="p-0">
-                {detail.tool_calls.length === 0 ? (
+              <CardContent className="p-4">
+                {viewMode === "dag" ? (
+                  <AgentRunDAG toolCalls={detail.tool_calls} trigger={detail.trigger} />
+                ) : detail.tool_calls.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground text-sm">No tool executions recorded.</div>
                 ) : (
                   <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">

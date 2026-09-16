@@ -42,6 +42,14 @@ const config: Config = {
           "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
           "100%": { transform: "translate(0px, 0px) scale(1)" },
         },
+        "meteor": {
+          "0%": { transform: "rotate(215deg) translateX(0)", opacity: "1" },
+          "70%": { opacity: "1" },
+          "100%": {
+            transform: "rotate(215deg) translateX(-500px)",
+            opacity: "0",
+          },
+        },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
@@ -62,6 +70,8 @@ const config: Config = {
         "shimmer": "shimmer 2.5s infinite linear",
         "glow-pulse": "glow-pulse 3s infinite ease-in-out",
         "border-spin": "border-spin 4s linear infinite",
+        "meteor-effect": "meteor 5s linear infinite",
+        "pulse-slow": "pulse 10s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },

@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    /* Light Mode Variables */
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
+    /* Ultra Premium Light Mode (Stripe/Vercel inspired) */
+    --background: 0 0% 100%;       /* Pure white */
+    --foreground: 222 47% 11%;     /* Deep navy text */
     
-    --card: 0 0% 100%;
+    --card: 0 0% 100%;             /* Pure white cards */
     --card-foreground: 222 47% 11%;
     
-    --border: 220 15% 90%;
+    --border: 214 32% 91%;         /* Very soft grey border */
     
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 40% 96%;          /* Extremely subtle off-white for muted sections */
+    --muted-foreground: 215 16% 40%; /* Darkened for better contrast */
     
-    --primary: 222 47% 11%;
+    --primary: 221 83% 53%;        /* Sharp modern blue */
     --primary-foreground: 210 40% 98%;
     
-    --accent: 221 83% 53%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 210 40% 96%;         /* Soft gray-blue hover accent */
+    --accent-foreground: 222 47% 11%;
     
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(0, 0, 0, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.06);
     
-    --color-gradient-start: #7c3aed;
-    --color-gradient-mid: #3b82f6;
-    --color-gradient-end: #06b6d4;
+    --color-gradient-start: #3b82f6; /* Blue */
+    --color-gradient-mid: #6366f1;   /* Indigo */
+    --color-gradient-end: #8b5cf6;   /* Violet */
   }
 
   .dark {
@@ -56,8 +56,8 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --glass-bg: rgba(15, 15, 20, 0.4);
-    --glass-border: rgba(255, 255, 255, 0.04);
+    --glass-bg: rgba(15, 15, 20, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
     
     --color-gradient-start: #a855f7; /* Purple */
     --color-gradient-mid: #3b82f6; /* Blue */
@@ -67,8 +67,11 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased selection:bg-accent/30 selection:text-accent-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.03) 0%, transparent 40%),
+                      radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.03) 0%, transparent 40%);
+    background-attachment: fixed;
   }
 }
 
@@ -77,78 +80,109 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Glassmorphism Classes */
+  /* Premium Light Glassmorphism */
   .glass {
-    @apply bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_rgba(0,0,0,0.4)];
+    @apply bg-[var(--glass-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-sm;
   }
   
   .glass-card {
-    @apply glass rounded-2xl relative transition-all duration-500 overflow-hidden;
-  }
-  
-  .glass-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.06) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity 0.5s ease;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .glass-card:hover::before {
-    opacity: 1;
+    @apply glass rounded-2xl relative transition-all duration-300 overflow-hidden;
   }
   
   .glass-card:hover {
-    @apply transform -translate-y-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_15px_40px_rgba(0,0,0,0.6)];
-    border-color: rgba(255,255,255,0.12);
+    @apply transform -translate-y-[2px] shadow-md border-border/80;
   }
 
-  /* Gradients */
+  /* Elegant Gradients */
   .gradient-text {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-gradient-start)] via-[var(--color-gradient-mid)] to-[var(--color-gradient-end)];
   }
   
-  .gradient-border {
-    position: relative;
-  }
-  
-  .gradient-border::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-mid), var(--color-gradient-end));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  
-  .glass-card:hover.gradient-border::before {
-    opacity: 1;
-  }
-  
-  /* Scrollbar Customization */
+  /* Modern Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  
   ::-webkit-scrollbar-track {
     background: transparent;
   }
-  
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    @apply bg-muted-foreground/20 rounded-full transition-colors;
   }
-  
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    @apply bg-muted-foreground/40;
   }
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-border {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.magic-border-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.magic-border-container::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  background: conic-gradient(from var(--angle), transparent 70%, var(--color-gradient-start) 85%, var(--color-gradient-end) 100%);
+  animation: rotate-border 4s linear infinite;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.group:hover .magic-border-container::after {
+  opacity: 1;
+}
+
+.magic-border-inner {
+  background: var(--card);
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-button {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-button::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 3s infinite ease-in-out;
+  transform: skewX(-20deg);
+}
+
+@keyframes aurora-text {
+  to {
+    background-position: 200% center;
+  }
+}
+.aurora-text {
+  background: linear-gradient(to right, #4f46e5, #ec4899, #8b5cf6, #4f46e5);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: aurora-text 4s linear infinite;
 }

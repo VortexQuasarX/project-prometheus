@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -8,6 +9,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescriptio
 import { getTrace } from "@/lib/api";
 import { formatMs, formatTime, formatUsd } from "@/lib/utils";
 import { TraceGraph } from "@/components/TraceGraph";
+import { TraceWaterfall } from "@/components/TraceWaterfall";
+import { useState } from "react";
 
 // Map stage names to icons
 const getStageIcon = (name: string) => {
@@ -22,6 +25,7 @@ const getStageIcon = (name: string) => {
 export default function TraceDetailPage() {
   const params = useParams<{ request_id: string }>();
   const requestId = params.request_id;
+  const [timelineView, setTimelineView] = useState<"waterfall" | "graph">("waterfall");
   const trace = useQuery({ queryKey: ["trace", requestId], queryFn: () => getTrace(requestId as string), retry: 0 });
 
   let body = <div className="space-y-4"><Skeleton className="h-48" /><Skeleton className="h-96" /></div>;
@@ -77,14 +81,34 @@ export default function TraceDetailPage() {
           </Card>
         </div>
 
-        {/* Execution Timeline */}
+        {/* Execution Timeline with View Switcher */}
         <Card>
-          <CardHeader className="border-b border-border/50 bg-muted/10">
-            <CardTitle className="flex items-center gap-2"><Clock size={18} className="text-accent" /> Execution Timeline</CardTitle>
-            <CardDescription>Microsecond-level tracing through the 12-stage pipeline</CardDescription>
+          <CardHeader className="flex-col sm:flex-row sm:items-center justify-between border-b border-border/50 bg-muted/10 gap-3 pb-3">
+            <div>
+              <CardTitle className="flex items-center gap-2"><Clock size={18} className="text-accent" /> Execution Timeline</CardTitle>
+              <CardDescription>Sub-millisecond latency telemetry across pipeline stages</CardDescription>
+            </div>
+            <div className="flex items-center bg-background/50 border border-border/50 p-1 rounded-xl text-xs self-start sm:self-auto">
+              <button
+                onClick={() => setTimelineView("waterfall")}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${timelineView === "waterfall" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Waterfall Gantt
+              </button>
+              <button
+                onClick={() => setTimelineView("graph")}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${timelineView === "graph" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Node Flow DAG
+              </button>
+            </div>
           </CardHeader>
-          <CardContent className="pt-6 pl-2">
-            <TraceGraph timeline={detail.timeline} />
+          <CardContent className="pt-4">
+            {timelineView === "waterfall" ? (
+              <TraceWaterfall timeline={detail.timeline} />
+            ) : (
+              <TraceGraph timeline={detail.timeline} />
+            )}
           </CardContent>
         </Card>
       </div>

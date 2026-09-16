@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-[0_0_15px_rgba(79,70,229,0.5)] hover:opacity-90",
+        default: "shimmer-button bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] hover:opacity-90",
         destructive: "bg-destructive text-white hover:bg-destructive/90",
         outline: "border border-border/50 glass hover:bg-muted/50",
         ghost: "hover:bg-muted/50",
@@ -36,16 +36,39 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 
 import { motion } from "framer-motion";
 
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement> & any) {
+export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement> & any) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cardRef.current.style.setProperty("--mouse-x", `${x}px`);
+    cardRef.current.style.setProperty("--mouse-y", `${y}px`);
+  };
+
   return (
     <motion.div 
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.01, translateY: -4 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className={cn("glass-card gradient-border", className)} 
+      className={cn("glass-card gradient-border relative group magic-border-container", className)} 
       {...props} 
-    />
+    >
+      <div className="magic-border-inner" />
+      {/* Interactive mouse tracking glow */}
+      <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition duration-300 group-hover:opacity-100 dark:hidden" style={{ background: "radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(0,0,0,0.03), transparent 40%)" }} />
+      <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition duration-300 group-hover:opacity-100 hidden dark:block" style={{ background: "radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 40%)" }} />
+      
+      {/* Content wrapper */}
+      <div className="relative z-10 h-full flex flex-col">
+        {children}
+      </div>
+    </motion.div>
   );
 }
 
@@ -259,3 +282,76 @@ export function MetricCard({
     </Card>
   );
 }
+
+export function Meteors({ number = 20 }: { number?: number }) {
+  const [meteors, setMeteors] = useState<any[]>([]);
+  
+  useEffect(() => {
+    setMeteors(new Array(number).fill(true).map(() => ({
+      left: Math.floor(Math.random() * (1000 - -1000) + -1000) + "px",
+      animationDelay: Math.random() * (0.8 - 0.2) + 0.2 + "s",
+      animationDuration: Math.floor(Math.random() * (10 - 2) + 2) + "s",
+    })));
+  }, [number]);
+
+  return (
+    <>
+      {meteors.map((m, idx) => (
+        <span
+          key={"meteor" + idx}
+          className={cn(
+            "animate-meteor-effect absolute top-0 h-0.5 w-0.5 rounded-[9999px] bg-slate-500 shadow-[0_0_0_1px_#ffffff10] rotate-[215deg]",
+            "before:content-[''] before:absolute before:top-1/2 before:transform before:-translate-y-[50%] before:w-[50px] before:h-[1px] before:bg-gradient-to-r before:from-[#64748b] before:to-transparent"
+          )}
+          style={{
+            left: m.left,
+            animationDelay: m.animationDelay,
+            animationDuration: m.animationDuration,
+          }}
+        ></span>
+      ))}
+    </>
+  );
+}
+import { useId } from "react";
+
+export const SparklesCore = ({
+  id,
+  background,
+  minSize,
+  maxSize,
+  particleDensity,
+  className,
+  particleColor,
+}: {
+  id?: string;
+  background?: string;
+  minSize?: number;
+  maxSize?: number;
+  particleDensity?: number;
+  className?: string;
+  particleColor?: string;
+}) => {
+  const generatedId = useId();
+  const canvasId = id || generatedId;
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={cn("h-full w-full absolute inset-0 z-0", className)}
+    >
+      {isReady && (
+        <div className="absolute inset-0 bg-transparent" style={{ backgroundImage: `radial-gradient(circle at center, transparent 0%, var(--background) 100%)` }}>
+           {/* Fallback sparkles using pure CSS / SVG if canvas is too complex for this quick inject */}
+           <Meteors number={10} />
+        </div>
+      )}
+    </motion.div>
+  );
+};

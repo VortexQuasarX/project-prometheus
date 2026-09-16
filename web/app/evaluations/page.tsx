@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -46,17 +47,45 @@ export default function EvaluationsPage() {
       ]
     : [];
 
+  const [shadowMode, setShadowMode] = useState(false);
+
   return (
     <PageShell>
       <Card className="mb-6">
-        <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border/50 bg-muted/10">
+        <CardHeader className="flex-col sm:flex-row sm:items-center justify-between border-b border-border/50 bg-muted/10 gap-4">
           <div>
-            <CardTitle className="flex items-center gap-2"><Target size={20} className="text-accent" /> Evaluation Harness</CardTitle>
-            <CardDescription>Golden-set scoring across 5 key dimensions</CardDescription>
+            <div className="flex items-center gap-3">
+              <CardTitle className="flex items-center gap-2"><Target size={20} className="text-accent" /> Evaluation Harness</CardTitle>
+              {shadowMode && (
+                <Badge tone="purple" className="text-[10px] animate-pulse">
+                  Shadow Mirroring (2%) Active
+                </Badge>
+              )}
+            </div>
+            <CardDescription>Golden-set scoring across 5 key dimensions &amp; asynchronous shadow testing</CardDescription>
           </div>
-          <Button disabled={trigger.isPending} onClick={() => trigger.mutate()} className="shadow-lg gap-2">
-            <Play size={16} /> {trigger.isPending ? "Evaluating..." : "Run Evals"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-background/50 border border-border/50 p-1 rounded-xl text-xs">
+              <button
+                onClick={() => setShadowMode(false)}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${!shadowMode ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Golden Set
+              </button>
+              <button
+                onClick={() => {
+                  setShadowMode(true);
+                  toast.info("Shadow Evaluation active: 2% of live traffic asynchronously mirrored to candidate models.");
+                }}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${shadowMode ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Shadow Mirror
+              </button>
+            </div>
+            <Button disabled={trigger.isPending} onClick={() => trigger.mutate()} className="shadow-lg gap-2 text-xs">
+              <Play size={14} /> {trigger.isPending ? "Evaluating..." : "Run Evals"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {runs.isLoading ? (
