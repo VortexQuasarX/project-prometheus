@@ -563,10 +563,12 @@ def run_chat_pipeline(
     context = "\n\n".join(
         f"[{i + 1}] {c.get('content', '')}" for i, c in enumerate(chunks)
     )
+    from .finops import compress_prompt
+    compressed_query = compress_prompt(query_used)
     prompt = (
-        f"Context:\n{context}\n\nQuestion: {query_used}\n\n"
+        f"Context:\n{context}\n\nQuestion: {compressed_query}\n\n"
         if context
-        else f"Question: {query_used}\n"
+        else f"Question: {compressed_query}\n"
     )
 
     try:
@@ -579,27 +581,50 @@ def run_chat_pipeline(
             temperature=0.3,
         )
     except (ProviderUnavailableError, Exception) as exc:  # noqa: BLE001 - controlled
-        _store_failed_request(
-            db,
-            request_id=request_id,
-            api_key=api_key,
-            error_type="provider_unavailable",
-            error_message=str(exc)[:500],
-        )
-        add_trace_event(request_id, "llm_called", status="error", metadata={"error": str(exc)[:200]})
-        audit_append(
-            getattr(api_key, "name", "api") or "api",
-            api_key.role,
-            "chat.failed",
-            "chat",
-            request_id=request_id,
-            metadata={"error_type": "provider_unavailable"},
-        )
-        raise PrometheusError(
-            "The LLM provider is currently unavailable. Request stored in the dead-letter table.",
-            code="provider_unavailable",
-            status_code=503,
-        ) from exc
+        # Intelligent Semantic Fallback Cascade
+        if model != settings.default_model:
+            add_trace_event(
+                request_id, 
+                "semantic_fallback_triggered", 
+                metadata={"original_model": model, "error": str(exc)[:200], "fallback_model": settings.default_model}
+            )
+            model = settings.default_model
+            try:
+                resp = llm.generate(
+                    prompt,
+                    model=model,
+                    system=system,
+                    max_tokens=int(policy.get("max_output_tokens", 500) or 500),
+                    temperature=0.3,
+                )
+            except Exception as inner_exc:
+                exc = inner_exc
+                resp = None
+        else:
+            resp = None
+
+        if resp is None:
+            _store_failed_request(
+                db,
+                request_id=request_id,
+                api_key=api_key,
+                error_type="provider_unavailable",
+                error_message=str(exc)[:500],
+            )
+            add_trace_event(request_id, "llm_called", status="error", metadata={"error": str(exc)[:200]})
+            audit_append(
+                getattr(api_key, "name", "api") or "api",
+                api_key.role,
+                "chat.failed",
+                "chat",
+                request_id=request_id,
+                metadata={"error_type": "provider_unavailable"},
+            )
+            raise PrometheusError(
+                "The LLM provider is currently unavailable. Request stored in the dead-letter table.",
+                code="provider_unavailable",
+                status_code=503,
+            ) from exc
 
     answer = resp.text
     input_tokens = resp.input_tokens
@@ -784,3 +809,57 @@ def chat(
         idempotency_key=x_idempotency_key,
         db=db,
     )
+
+class ChatCompletionMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatCompletionRequest(BaseModel):
+    model: str = "default"
+    messages: list[ChatCompletionMessage]
+    stream: bool = False
+
+@router.post("/chat/completions")
+def openai_chat_completions(
+    req: ChatCompletionRequest,
+    api_key: ApiKey = Depends(require_api_key),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """OpenAI-compatible chat completion endpoint that wraps the Prometheus pipeline."""
+    # Concatenate messages (a simple implementation for the pipeline)
+    query = "\\n".join([f"{m.role}: {m.content}" for m in req.messages])
+    
+    # Execute Prometheus full pipeline
+    result = run_chat_pipeline(query, model=req.model, api_key=api_key, db=db)
+    
+    # Translate Prometheus response to OpenAI format
+    return {
+        "id": result["request_id"],
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": result["model"],
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": result["answer"],
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": result["input_tokens"],
+            "completion_tokens": result["output_tokens"],
+            "total_tokens": result["input_tokens"] + result["output_tokens"]
+        },
+        # Custom extension to expose Prometheus telemetry
+        "prometheus_metadata": {
+            "cost_usd": result["estimated_cost_usd"],
+            "cache_hit": result["cache_hit"],
+            "latency_ms": result["latency_ms"],
+            "router_decision": result["router_decision"],
+            "guardrail_status": result["guardrail_status"],
+            "trace_url": result["trace_url"]
+        }
+    }

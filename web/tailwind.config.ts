@@ -6,16 +6,63 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(214 32% 91%)",
-        background: "hsl(0 0% 100%)",
-        foreground: "hsl(222 47% 11%)",
-        muted: { DEFAULT: "hsl(210 40% 96%)", foreground: "hsl(215 16% 47%)" },
-        card: { DEFAULT: "hsl(0 0% 100%)", foreground: "hsl(222 47% 11%)" },
-        primary: { DEFAULT: "hsl(222 47% 11%)", foreground: "hsl(210 40% 98%)" },
-        accent: { DEFAULT: "hsl(221 83% 53%)", foreground: "hsl(210 40% 98%)" },
-        destructive: { DEFAULT: "hsl(0 72% 51%)", foreground: "hsl(210 40% 98%)" },
+        border: "hsl(var(--border))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+        card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+        primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+        accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+        destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
       },
-      borderRadius: { lg: "0.5rem" },
+      borderRadius: {
+        lg: "0.75rem",
+        xl: "1rem",
+        "2xl": "1.25rem",
+      },
+      backdropBlur: {
+        xs: "2px",
+      },
+      keyframes: {
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "blob": {
+          "0%": { transform: "translate(0px, 0px) scale(1)" },
+          "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+          "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+          "100%": { transform: "translate(0px, 0px) scale(1)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.05)" },
+        },
+        "border-spin": {
+          "100%": { transform: "rotate(360deg)" },
+        }
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "fade-in": "fade-in 0.5s ease-out both",
+        "scale-in": "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "blob": "blob 7s infinite",
+        "shimmer": "shimmer 2.5s infinite linear",
+        "glow-pulse": "glow-pulse 3s infinite ease-in-out",
+        "border-spin": "border-spin 4s linear infinite",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

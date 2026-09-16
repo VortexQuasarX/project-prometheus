@@ -2,18 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    /* Light Mode Variables */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --border: 220 15% 90%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    
+    --accent: 221 83% 53%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.05);
+    
+    --color-gradient-start: #7c3aed;
+    --color-gradient-mid: #3b82f6;
+    --color-gradient-end: #06b6d4;
+  }
+
+  .dark {
+    /* Extreme Luxury Dark Mode - Deep Space / Cyber */
+    --background: 240 10% 4%; /* Near black with a slight blue tint */
+    --foreground: 0 0% 98%;
+    
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    
+    --border: 240 10% 12%;
+    
+    --muted: 240 10% 10%;
+    --muted-foreground: 240 5% 65%;
+    
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 10% 4%;
+    
+    /* Neon Cyan / Purple accent */
+    --accent: 270 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --glass-bg: rgba(15, 15, 20, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.04);
+    
+    --color-gradient-start: #a855f7; /* Purple */
+    --color-gradient-mid: #3b82f6; /* Blue */
+    --color-gradient-end: #06b6d4; /* Cyan */
+  }
 }
 
-.dark {
-  color-scheme: dark;
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-accent/30 selection:text-accent-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }
 
-body {
-  @apply bg-muted/40 text-foreground antialiased;
-}
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
+  /* Glassmorphism Classes */
+  .glass {
+    @apply bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_rgba(0,0,0,0.4)];
+  }
+  
+  .glass-card {
+    @apply glass rounded-2xl relative transition-all duration-500 overflow-hidden;
+  }
+  
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.06) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .glass-card:hover::before {
+    opacity: 1;
+  }
+  
+  .glass-card:hover {
+    @apply transform -translate-y-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_15px_40px_rgba(0,0,0,0.6)];
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  /* Gradients */
+  .gradient-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-gradient-start)] via-[var(--color-gradient-mid)] to-[var(--color-gradient-end)];
+  }
+  
+  .gradient-border {
+    position: relative;
+  }
+  
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-mid), var(--color-gradient-end));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .glass-card:hover.gradient-border::before {
+    opacity: 1;
+  }
+  
+  /* Scrollbar Customization */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
 }
