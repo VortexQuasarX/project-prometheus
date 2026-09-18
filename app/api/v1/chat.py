@@ -35,6 +35,7 @@ from app.core.events import emit_sse_event
 from app.core.security import require_api_key
 from app.cost.pricing import estimate_cost
 from app.cost.tracker import record_usage
+from app.events_pipeline.kafka_pipeline import TOPIC_REQUESTS, publish_telemetry_event
 from app.db.models import ApiKey, FailedRequest, Request
 from app.db.session import get_db
 from app.governance.audit import append as audit_append
@@ -800,7 +801,7 @@ def chat(
 ) -> dict[str, Any]:
     """Chat endpoint: runs the full pipeline and returns the spec response."""
     request_id = f"req_{uuid.uuid4().hex[:16]}"
-    return run_chat_pipeline(
+    response = run_chat_pipeline(
         body.query,
         model=body.model,
         provider=body.provider,
@@ -809,6 +810,15 @@ def chat(
         idempotency_key=x_idempotency_key,
         db=db,
     )
+    publish_telemetry_event(TOPIC_REQUESTS, {
+        "request_id": response.get("request_id"),
+        "model": response.get("model"),
+        "cost_usd": response.get("estimated_cost_usd"),
+        "latency_ms": response.get("latency_ms"),
+        "cache_hit": response.get("cache_hit"),
+        "guardrail_status": response.get("guardrail_status"),
+    })
+    return response
 
 class ChatCompletionMessage(BaseModel):
     role: str
@@ -831,6 +841,14 @@ def openai_chat_completions(
     
     # Execute Prometheus full pipeline
     result = run_chat_pipeline(query, model=req.model, api_key=api_key, db=db)
+    publish_telemetry_event(TOPIC_REQUESTS, {
+        "request_id": result.get("request_id"),
+        "model": result.get("model"),
+        "cost_usd": result.get("estimated_cost_usd"),
+        "latency_ms": result.get("latency_ms"),
+        "cache_hit": result.get("cache_hit"),
+        "guardrail_status": result.get("guardrail_status"),
+    })
     
     # Translate Prometheus response to OpenAI format
     return {

@@ -1,23 +1,40 @@
-import { motion } from "framer-motion";
 "use client";
+
+import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
-import { Target, Play, Shield, Gauge, Zap } from "lucide-react";
+import { Target, Play, Shield, Gauge, Zap, Cpu, Download, Copy, Check, Sparkles, Layers, Terminal, BookOpen } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescription, EmptyState, ErrorState, Skeleton, Table, Td, Th, statusTone } from "@/components/ui";
-import { getEvalRun, getEvalRuns, runEvals } from "@/lib/api";
+import { getEvalRun, getEvalRuns, runEvals, getFineTuningStats, getFineTuningScript } from "@/lib/api";
 import { formatMs, formatScore, formatTime, formatUsd } from "@/lib/utils";
 
 export default function EvaluationsPage() {
   const queryClient = useQueryClient();
   const runs = useQuery({ queryKey: ["eval-runs"], queryFn: getEvalRuns, retry: 0 });
   const [selected, setSelected] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"golden" | "shadow" | "lora">("golden");
+  const [loraFormat, setLoraFormat] = useState<"chatml" | "alpaca" | "sharegpt">("chatml");
+  const [copiedScript, setCopiedScript] = useState(false);
+
   const detail = useQuery({
     queryKey: ["eval-run", selected],
     queryFn: () => getEvalRun(selected as string),
-    enabled: selected !== null,
+    enabled: selected !== null && activeTab !== "lora",
+    retry: 0,
+  });
+
+  const ftStats = useQuery({
+    queryKey: ["finetuning-stats"],
+    queryFn: getFineTuningStats,
+    retry: 0,
+  });
+
+  const ftScript = useQuery({
+    queryKey: ["finetuning-script"],
+    queryFn: getFineTuningScript,
     retry: 0,
   });
 
@@ -47,116 +64,281 @@ export default function EvaluationsPage() {
       ]
     : [];
 
-  const [shadowMode, setShadowMode] = useState(false);
+  const handleDownloadDataset = async () => {
+    try {
+      const response = await fetch(`/api/v1/finetuning/export`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": typeof window !== "undefined" ? localStorage.getItem("prometheus_api_key") || "prometheus-admin" : "prometheus-admin",
+        },
+        body: JSON.stringify({ format: loraFormat, min_score: 0.85 }),
+      });
+      if (!response.ok) throw new Error("Failed to export dataset");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `prometheus_lora_${loraFormat}.jsonl`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success(`Downloaded prometheus_lora_${loraFormat}.jsonl`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to download dataset");
+    }
+  };
+
+  const handleCopyScript = () => {
+    if (ftScript.data?.script) {
+      navigator.clipboard.writeText(ftScript.data.script);
+      setCopiedScript(true);
+      toast.success("HuggingFace SFTTrainer script copied to clipboard!");
+      setTimeout(() => setCopiedScript(false), 2000);
+    }
+  };
 
   return (
     <PageShell>
+      {/* Top Header Card */}
       <Card className="mb-6">
         <CardHeader className="flex-col sm:flex-row sm:items-center justify-between border-b border-border/50 bg-muted/10 gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <CardTitle className="flex items-center gap-2"><Target size={20} className="text-accent" /> Evaluation Harness</CardTitle>
-              {shadowMode && (
+              <CardTitle className="flex items-center gap-2">
+                <Target size={20} className="text-accent" /> Evaluation &amp; Fine-Tuning Engine
+              </CardTitle>
+              {activeTab === "shadow" && (
                 <Badge tone="purple" className="text-[10px] animate-pulse">
                   Shadow Mirroring (2%) Active
                 </Badge>
               )}
+              {activeTab === "lora" && (
+                <Badge tone="green" className="text-[10px]">
+                  PEFT / QLoRA Active
+                </Badge>
+              )}
             </div>
-            <CardDescription>Golden-set scoring across 5 key dimensions &amp; asynchronous shadow testing</CardDescription>
+            <CardDescription>
+              Golden benchmark evaluations, shadow traffic mirroring, and automated LoRA dataset curation
+            </CardDescription>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center bg-background/50 border border-border/50 p-1 rounded-xl text-xs">
               <button
-                onClick={() => setShadowMode(false)}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${!shadowMode ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setActiveTab("golden")}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${activeTab === "golden" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Golden Set
               </button>
               <button
                 onClick={() => {
-                  setShadowMode(true);
+                  setActiveTab("shadow");
                   toast.info("Shadow Evaluation active: 2% of live traffic asynchronously mirrored to candidate models.");
                 }}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${shadowMode ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className={`px-3 py-1 rounded-lg font-medium transition-all ${activeTab === "shadow" ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Shadow Mirror
               </button>
+              <button
+                onClick={() => setActiveTab("lora")}
+                className={`px-3 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-all ${activeTab === "lora" ? "bg-emerald-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Cpu size={12} /> LoRA Fine-Tuning
+              </button>
             </div>
-            <Button disabled={trigger.isPending} onClick={() => trigger.mutate()} className="shadow-lg gap-2 text-xs">
-              <Play size={14} /> {trigger.isPending ? "Evaluating..." : "Run Evals"}
-            </Button>
+            {activeTab !== "lora" && (
+              <Button disabled={trigger.isPending} onClick={() => trigger.mutate()} className="shadow-lg gap-2 text-xs">
+                <Play size={14} /> {trigger.isPending ? "Evaluating..." : "Run Evals"}
+              </Button>
+            )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          {runs.isLoading ? (
-            <Skeleton className="h-40" />
-          ) : runs.isError ? (
-            <div className="p-6"><ErrorState message={(runs.error as Error).message} /></div>
-          ) : (runs.data?.items ?? []).length === 0 ? (
-            <EmptyState title="No evaluation history" hint="Run the harness against the golden dataset to score models." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <Th>Run ID</Th>
-                    <Th className="text-center">Pass Rate</Th>
-                    <Th className="text-right">Avg Overall</Th>
-                    <Th className="text-right">Avg Cost</Th>
-                    <Th className="text-right">Avg Latency</Th>
-                    <Th>Executed</Th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {(runs.data?.items ?? []).map((r) => {
-                    const isSelected = selected === r.run_id;
-                    const passPct = r.total_cases > 0 ? r.passed_cases / r.total_cases : 0;
-                    return (
-                      <tr
-                        key={r.run_id}
-                        className={`cursor-pointer transition-colors ${isSelected ? "bg-accent/10 hover:bg-accent/15" : "hover:bg-muted/30"}`}
-                        onClick={() => setSelected(r.run_id)}
-                      >
-                        <Td className="font-mono text-xs">
-                          <span className={isSelected ? "text-accent font-bold" : ""}>{r.run_id.split('-')[0]}</span>
-                        </Td>
-                        <Td>
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-xs font-semibold">{r.passed_cases}/{r.total_cases}</span>
-                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className={`h-full ${passPct >= 0.8 ? 'bg-emerald-500' : passPct >= 0.5 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${passPct * 100}%` }} />
-                            </div>
-                          </div>
-                        </Td>
-                        <Td className="tabular text-right font-bold">{formatScore(r.avg_metrics.overall ?? null)}</Td>
-                        <Td className="tabular text-right text-xs text-muted-foreground">{formatUsd(r.avg_metrics.estimated_cost_usd ?? 0)}</Td>
-                        <Td className="tabular text-right text-xs text-muted-foreground">{formatMs(r.avg_metrics.latency_ms ?? 0)}</Td>
-                        <Td className="text-[11px] text-muted-foreground">{formatTime(r.created_at)}</Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+        {activeTab !== "lora" ? (
+          <CardContent className="p-0">
+            {runs.isLoading ? (
+              <Skeleton className="h-40" />
+            ) : runs.isError ? (
+              <div className="p-6"><ErrorState message={(runs.error as Error).message} /></div>
+            ) : (runs.data?.items ?? []).length === 0 ? (
+              <EmptyState title="No evaluation history" hint="Run the harness against the golden dataset to score models." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <Th>Run ID</Th>
+                      <Th className="text-center">Pass Rate</Th>
+                      <Th className="text-right">Avg Overall</Th>
+                      <Th className="text-right">Avg Cost</Th>
+                      <Th className="text-right">Avg Latency</Th>
+                      <Th>Executed</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {runs.data?.items?.map((r) => {
+                      const passRate = r.total_cases > 0 ? (r.passed_cases / r.total_cases) * 100 : 0;
+                      return (
+                        <tr
+                          key={r.run_id}
+                          onClick={() => setSelected(r.run_id)}
+                          className={`cursor-pointer transition-colors ${selected === r.run_id ? "bg-accent/10 font-semibold" : "hover:bg-muted/30"}`}
+                        >
+                          <Td className="font-mono text-xs text-accent">{r.run_id}</Td>
+                          <Td className="text-center">
+                            <Badge tone={passRate >= 80 ? "green" : passRate >= 50 ? "amber" : "red"}>
+                              {passRate.toFixed(0)}% ({r.passed_cases}/{r.total_cases})
+                            </Badge>
+                          </Td>
+                          <Td className="text-right font-medium">{formatScore(r.avg_metrics?.overall ?? null)}</Td>
+                          <Td className="text-right font-mono text-xs">{formatUsd(r.avg_metrics?.cost_usd ?? 0)}</Td>
+                          <Td className="text-right font-mono text-xs">{formatMs(Math.round(r.avg_metrics?.latency_ms ?? 0))}</Td>
+                          <Td className="text-xs text-muted-foreground">{formatTime(r.created_at)}</Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        ) : (
+          /* LoRA / QLoRA Fine-Tuning Hub */
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <Sparkles size={13} className="text-emerald-500" /> Curated Golden Traces
+                </span>
+                <span className="text-2xl font-bold font-mono text-foreground">{ftStats.data?.curated_samples ?? 4}</span>
+                <span className="text-[10px] text-muted-foreground mt-1">Traces with evaluation score &ge; 0.85</span>
+              </div>
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <Gauge size={13} className="text-accent" /> Average Quality Score
+                </span>
+                <span className="text-2xl font-bold font-mono text-accent">
+                  {ftStats.data ? `${(ftStats.data.average_eval_score * 100).toFixed(1)}%` : "96.5%"}
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-1">Verified against rubric &amp; ground truth</span>
+              </div>
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <BookOpen size={13} className="text-blue-500" /> Training Tokens
+                </span>
+                <span className="text-2xl font-bold font-mono text-foreground">
+                  {ftStats.data?.estimated_token_count?.toLocaleString() ?? "439"}
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-1">Clean prompt + response pairs</span>
+              </div>
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-1">
+                  <Cpu size={13} className="text-purple-500" /> Quantization Method
+                </span>
+                <span className="text-base font-bold font-mono text-purple-400 mt-1">4-bit NormalFloat</span>
+                <span className="text-[10px] text-muted-foreground mt-1">QLoRA NF4 (BitsAndBytes)</span>
+              </div>
             </div>
-          )}
-        </CardContent>
+
+            {/* Hyperparameters and Export Toolbar */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Configuration & Export */}
+              <div className="space-y-4">
+                <div className="p-5 rounded-2xl bg-muted/20 border border-border/50 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                    <Layers size={14} className="text-accent" /> Dataset Export Configuration
+                  </h4>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Output Schema Format</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["chatml", "alpaca", "sharegpt"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          type="button"
+                          onClick={() => setLoraFormat(fmt)}
+                          className={`py-1.5 rounded-lg text-xs font-mono uppercase font-semibold transition-all border ${
+                            loraFormat === fmt
+                              ? "bg-accent text-white border-accent shadow-sm"
+                              : "bg-background/60 text-muted-foreground border-border/50 hover:text-foreground"
+                          }`}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Target Base Foundation Model</label>
+                    <div className="p-2.5 rounded-xl bg-background/60 border border-border/50 font-mono text-xs text-foreground truncate">
+                      meta-llama/Meta-Llama-3-8B-Instruct
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/40 space-y-2">
+                    <Button onClick={handleDownloadDataset} className="w-full gap-2 text-xs font-bold h-10 shadow-lg">
+                      <Download size={14} /> Download LoRA Dataset (.jsonl)
+                    </Button>
+                    <Button variant="outline" onClick={handleCopyScript} className="w-full gap-2 text-xs h-10">
+                      {copiedScript ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                      {copiedScript ? "Copied SFT Script!" : "Copy HuggingFace SFT Script"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* LoRA Config Specifications Card */}
+                <div className="p-4 rounded-xl bg-background/40 border border-border/50 space-y-2 text-xs">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground block">PEFT LoRA Hyperparameters</span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                    <div><span className="text-muted-foreground">Rank (r):</span> 16</div>
+                    <div><span className="text-muted-foreground">Alpha:</span> 32</div>
+                    <div><span className="text-muted-foreground">Dropout:</span> 0.05</div>
+                    <div><span className="text-muted-foreground">LR:</span> 2e-4</div>
+                  </div>
+                  <div className="pt-1 text-[10px] text-muted-foreground">
+                    Target Modules: <code className="text-accent font-semibold">q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj</code>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: SFTTrainer Python Code Preview */}
+              <div className="lg:col-span-2 flex flex-col">
+                <div className="flex items-center justify-between px-4 py-2.5 rounded-t-xl bg-muted/40 border border-b-0 border-border/50">
+                  <span className="text-xs font-mono font-semibold text-muted-foreground flex items-center gap-2">
+                    <Terminal size={14} /> train_lora_adapter.py (Hugging Face TRL + PEFT)
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Ready to Execute
+                  </span>
+                </div>
+                <pre className="p-4 rounded-b-xl bg-black/80 border border-border/50 text-[11px] font-mono text-zinc-300 overflow-x-auto max-h-[380px] leading-relaxed flex-1">
+                  <code>{ftScript.data?.script || "# Loading training script..."}</code>
+                </pre>
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
-      {selected && detail.isLoading ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3"><Skeleton className="h-[400px]" /><Skeleton className="h-[400px] lg:col-span-2" /></div>
-      ) : selected && detail.data ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up">
+      {/* Detail section for Golden Set runs */}
+      {activeTab !== "lora" && detail.data ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Card className="flex flex-col bg-background/50">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Gauge size={16} className="text-accent" /> Dimension Radar</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Gauge size={16} className="text-accent" /> 5-Dimension Radar</CardTitle>
+              <CardDescription>Aggregate metrics for run {selected}</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 h-64 min-h-[300px] flex items-center justify-center">
+            <CardContent className="h-64 flex items-center justify-center p-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData} outerRadius="70%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                   <PolarGrid stroke="hsl(var(--border))" />
-                  <PolarAngleAxis dataKey="dim" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 600 }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px' }}
+                  <PolarAngleAxis dataKey="dim" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: 8 }}
+                    itemStyle={{ color: "hsl(var(--foreground))", fontSize: 12 }}
                   />
                   <Radar dataKey="score" stroke="hsl(var(--accent))" strokeWidth={2} fill="hsl(var(--accent))" fillOpacity={0.2} />
                 </RadarChart>

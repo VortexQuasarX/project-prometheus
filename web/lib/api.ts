@@ -17,6 +17,9 @@ import type {
   Policy,
   TraceDetail,
   TraceListItem,
+  FineTuningConfig,
+  FineTuningStats,
+  KafkaStatus,
 } from "./types";
 
 const isServer = typeof window === "undefined";
@@ -169,3 +172,29 @@ export function getAudit(limit = 100): Promise<{ items: AuditEvent[]; total: num
 export function resetDemo(): Promise<{ status: string }> {
   return request("/demo/reset", { method: "POST", body: JSON.stringify({}) });
 }
+
+// --- kafka ------------------------------------------------------------------
+export function getKafkaStatus(): Promise<KafkaStatus> {
+  return request<KafkaStatus>("/kafka/status");
+}
+
+export function postKafkaTest(topic = "prometheus.requests"): Promise<{ status: string; topic: string; latency_ms: number; timestamp?: string }> {
+  return request<{ status: string; topic: string; latency_ms: number; timestamp?: string }>("/kafka/produce-test", {
+    method: "POST",
+    body: JSON.stringify({ topic, message: { test: true, timestamp: Date.now() } }),
+  });
+}
+
+// --- fine-tuning & lora -----------------------------------------------------
+export function getFineTuningStats(): Promise<FineTuningStats> {
+  return request<FineTuningStats>("/finetuning/stats");
+}
+
+export function getFineTuningConfig(): Promise<FineTuningConfig> {
+  return request<FineTuningConfig>("/finetuning/config");
+}
+
+export function getFineTuningScript(): Promise<{ script: string; framework: string }> {
+  return request<{ script: string; framework: string }>("/finetuning/training-script");
+}
+

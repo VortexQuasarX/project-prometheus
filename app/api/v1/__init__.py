@@ -24,6 +24,8 @@ from app.api.v1 import (
     policies,
     traces,
     redteam,
+    kafka_admin,
+    fine_tuning,
 )
 
 api_router = APIRouter()
@@ -43,5 +45,7 @@ api_router.include_router(evals.router, tags=["evals"])
 api_router.include_router(audit.router, tags=["audit"])
 api_router.include_router(demo.router, tags=["demo"])
 api_router.include_router(redteam.router, tags=["redteam"])
+api_router.include_router(kafka_admin.router)
+api_router.include_router(fine_tuning.router)
 
 __all__ = ["api_router"]

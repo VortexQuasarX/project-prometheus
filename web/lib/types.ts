@@ -250,3 +250,40 @@ export interface ApiError {
   error?: { code: string; message: string; details?: unknown };
   detail?: string;
 }
+
+export interface KafkaTopicInfo {
+  name: string;
+  partitions: number;
+  status: string;
+}
+
+export interface KafkaStatus {
+  status: string;
+  broker_type: string;
+  bootstrap_servers: string;
+  topics: KafkaTopicInfo[];
+  total_events_published: number;
+  consumer_group: string;
+  dlq_topic: string;
+}
+
+export interface FineTuningStats {
+  curated_samples: number;
+  average_eval_score: number;
+  estimated_token_count: number;
+  available_formats: string[];
+  recommended_base_model: string;
+  peft_method: string;
+}
+
+export interface FineTuningConfig {
+  peft_type: string;
+  base_model_name_or_path: string;
+  r: number;
+  lora_alpha: number;
+  lora_dropout: number;
+  target_modules: string[];
+  quantization_config?: Record<string, unknown>;
+  training_args?: Record<string, unknown>;
+}
+

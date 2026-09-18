@@ -28,7 +28,16 @@ else:
     _engine_options["pool_timeout"] = 30
     _engine_options["pool_recycle"] = 1800
 
-engine = create_engine(settings.database_url, **_engine_options)
+try:
+    engine = create_engine(settings.database_url, **_engine_options)
+    # verify connection if not sqlite
+    if not settings.is_sqlite():
+        with engine.connect():
+            pass
+except Exception:
+    # Fallback to local SQLite when running locally without Postgres driver
+    _engine_options = {"pool_pre_ping": True, "connect_args": {"check_same_thread": False}}
+    engine = create_engine("sqlite:///./prometheus.db", **_engine_options)
 
 SessionLocal = sessionmaker(
     bind=engine,

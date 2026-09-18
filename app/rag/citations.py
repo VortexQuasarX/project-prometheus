@@ -29,12 +29,18 @@ def build_citations(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for chunk in chunks:
         metadata = chunk.get("metadata") or {}
         title = chunk.get("title") or metadata.get("title") or ""
-        citations.append(
-            {
-                "document_id": chunk.get("document_id", ""),
-                "title": title,
-                "chunk_id": chunk.get("chunk_id", ""),
-                "snippet": _snippet(str(chunk.get("content") or "")),
-            }
-        )
+        citation: dict[str, Any] = {
+            "document_id": chunk.get("document_id", ""),
+            "title": title,
+            "chunk_id": chunk.get("chunk_id", ""),
+            "snippet": _snippet(str(chunk.get("content") or "")),
+        }
+        if "rerank_score" in chunk:
+            citation["rerank_score"] = chunk["rerank_score"]
+        if "dense_score" in chunk:
+            citation["dense_score"] = chunk["dense_score"]
+        if "bm25_score" in chunk:
+            citation["bm25_score"] = chunk["bm25_score"]
+        citations.append(citation)
     return citations
+

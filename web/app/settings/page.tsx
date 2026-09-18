@@ -1,12 +1,13 @@
-﻿import { motion } from "framer-motion";
 "use client";
+
+import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Server, KeyRound, RotateCcw, Info, Terminal, Activity, Wifi, CheckCircle2, RefreshCw, Shield, Globe } from "lucide-react";
+import { Server, KeyRound, RotateCcw, Info, Terminal, Activity, Wifi, CheckCircle2, RefreshCw, Shield, Globe, Radio, Layers, Search, Zap, Send } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Input, Label, Skeleton } from "@/components/ui";
-import { getApiKey, getHealth, resetDemo, setApiKey } from "@/lib/api";
+import { getApiKey, getHealth, resetDemo, setApiKey, getKafkaStatus, postKafkaTest } from "@/lib/api";
 
 const INITIAL_PROVIDERS = [
   { name: "OpenRouter Multi-Provider", status: "Healthy", latency: 142, tier: "46 Free Models Active", region: "Global Edge" },
@@ -18,9 +19,19 @@ const INITIAL_PROVIDERS = [
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const health = useQuery({ queryKey: ["health"], queryFn: getHealth, refetchInterval: 30_000, retry: 0 });
+  const kafka = useQuery({ queryKey: ["kafka-status"], queryFn: getKafkaStatus, refetchInterval: 15_000, retry: 0 });
   const [key, setKey] = useState("");
   const [providers, setProviders] = useState(INITIAL_PROVIDERS);
   const [isPinging, setIsPinging] = useState(false);
+
+  const testKafka = useMutation({
+    mutationFn: () => postKafkaTest("prometheus.requests"),
+    onSuccess: (data) => {
+      toast.success(`Kafka event produced in ${data.latency_ms}ms to ${data.topic}`);
+      void queryClient.invalidateQueries({ queryKey: ["kafka-status"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   useEffect(() => {
     setKey(getApiKey());
@@ -29,19 +40,21 @@ export default function SettingsPage() {
   const pingProviders = () => {
     setIsPinging(true);
     setTimeout(() => {
-      setProviders(prev => prev.map(p => ({
-        ...p,
-        latency: Math.max(2, Math.round(p.latency + (Math.random() * 20 - 10)))
-      })));
+      setProviders([
+        { name: "OpenRouter Multi-Provider", status: "Healthy", latency: Math.floor(120 + Math.random() * 40), tier: "46 Free Models Active", region: "Global Edge" },
+        { name: "HuggingFace Hub Router", status: "Healthy", latency: Math.floor(180 + Math.random() * 35), tier: "Inference Endpoint", region: "us-east-1" },
+        { name: "AWS Bedrock / Lambda Gateway", status: "Healthy", latency: Math.floor(25 + Math.random() * 15), tier: "Primary Control Plane", region: "ap-south-1 (Mumbai)" },
+        { name: "Prometheus Vector Cache", status: "Optimal", latency: Math.floor(2 + Math.random() * 3), tier: "In-Memory Semantic Cache", region: "Local Micro-Cache" },
+      ]);
       setIsPinging(false);
-      toast.success("Provider latency health check complete.");
+      toast.success("Edge provider latencies refreshed");
     }, 600);
   };
 
   const reset = useMutation({
     mutationFn: resetDemo,
     onSuccess: () => {
-      toast.success("Demo data reset and reseeded");
+      toast.success("Demo environment reset: seed policies & keys restored");
       void queryClient.invalidateQueries();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -52,9 +65,10 @@ export default function SettingsPage() {
       <div className="max-w-5xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">System Configuration &amp; Topology</h1>
-          <p className="text-xs text-muted-foreground mt-1">Manage API credentials, inspect upstream provider health, and oversee infrastructure telemetry.</p>
+          <p className="text-xs text-muted-foreground mt-1">Manage API credentials, inspect upstream provider health, Kafka streaming, and Hybrid RAG retrieval.</p>
         </div>
         
+        {/* Top Two-Column Grid */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
           <div className="space-y-6">
             {/* Backend Gateway Health */}
@@ -120,33 +134,31 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Keys are stored in your browser&apos;s <code className="text-[10px] bg-muted px-1 rounded">localStorage</code> and authenticated via zero-trust header injection. Default token: <code className="text-[10px] font-bold text-foreground">prometheus-admin</code>.
-                </p>
-              </CardContent>
-            </Card>
 
-            {/* Reset */}
-            <Card className="border-amber-500/30">
-              <CardHeader className="border-b border-amber-500/10 bg-amber-500/5 pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm text-amber-500"><RotateCcw size={16} /> Operational Reset</CardTitle>
-                <CardDescription>Destroy and reseed demo environment</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                  Wipes all operational traces, cache entries, and agent runs, then reseeds the golden dataset baseline.
-                </p>
-                <Button variant="outline" className="w-full gap-2 text-xs border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-500 h-9" disabled={reset.isPending} onClick={() => reset.mutate()}>
-                  <RotateCcw size={14} className={reset.isPending ? "animate-spin" : ""} /> {reset.isPending ? "Reseeding Database..." : "Reset to Golden Baseline"}
-                </Button>
+                <div className="p-3 bg-muted/20 border border-border/50 rounded-xl flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold">Reset Demo Environment</p>
+                    <p className="text-[10px] text-muted-foreground">Restore baseline policies, demo keys, and initial budget.</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => reset.mutate()} 
+                    disabled={reset.isPending}
+                    className="border-red-500/30 text-red-500 hover:bg-red-500/10 text-xs gap-1.5 h-8"
+                  >
+                    <RotateCcw size={12} className={reset.isPending ? "animate-spin" : ""} />
+                    Reset
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column: Live Upstream Provider Latency Health Monitor */}
           <div className="space-y-6">
+            {/* Upstream Latencies */}
             <Card>
-              <CardHeader className="border-b border-border/50 bg-muted/10 pb-3 flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex-row items-center justify-between border-b border-border/50 bg-muted/10 pb-3 space-y-0">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-sm"><Wifi size={16} className="text-emerald-500" /> Upstream Provider Latencies</CardTitle>
                   <CardDescription>Real-time edge health and round-trip ping telemetry</CardDescription>
@@ -215,6 +227,119 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Kafka Event Bus & Hybrid RAG Architecture */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Kafka Event Bus */}
+          <Card>
+            <CardHeader className="border-b border-border/50 bg-muted/10 pb-3 flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Radio size={16} className="text-amber-500 animate-pulse" /> Apache Kafka Event Streaming
+                </CardTitle>
+                <CardDescription>Asynchronous telemetry &amp; audit event bus</CardDescription>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={testKafka.isPending}
+                onClick={() => testKafka.mutate()}
+                className="h-8 text-xs gap-1.5"
+              >
+                <Send size={12} /> {testKafka.isPending ? "Sending..." : "Dispatch Probe"}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-background/60 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Broker Mode</span>
+                  <span className="font-semibold text-foreground">{kafka.data?.broker_type ?? "In-Memory Event Bus"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-background/60 border border-border/50">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Consumer Group</span>
+                  <span className="font-mono text-accent">{kafka.data?.consumer_group ?? "prometheus-analytics"}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Active Managed Topics
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(kafka.data?.topics ?? [
+                    { name: "prometheus.requests", partitions: 3, status: "active" },
+                    { name: "prometheus.audit", partitions: 2, status: "active" },
+                    { name: "prometheus.costs", partitions: 1, status: "active" },
+                    { name: "prometheus.requests.dlq", partitions: 1, status: "idle" },
+                  ]).map((t) => (
+                    <div key={t.name} className="p-2.5 rounded-lg bg-muted/20 border border-border/50 flex items-center justify-between text-xs">
+                      <span className="font-mono text-[11px] text-foreground font-medium">{t.name}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground bg-background/80 px-1.5 py-0.5 rounded border border-border/40">
+                        {t.partitions} P
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-amber-400 block mb-0.5">High-Throughput Enterprise Decoupling</span>
+                Every completed LLM request, audit stamp, and token cost record is published asynchronously to Kafka with zero proxy latency impact.
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Hybrid RAG & Cross-Encoder Architecture */}
+          <Card>
+            <CardHeader className="border-b border-border/50 bg-muted/10 pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Search size={16} className="text-blue-500" /> Hybrid Search &amp; Cross-Encoder RAG
+              </CardTitle>
+              <CardDescription>Dense vector embeddings combined with Okapi BM25 &amp; Re-Ranking</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/50 space-y-2">
+                <span className="font-bold text-[11px] uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <Layers size={13} className="text-accent" /> 3-Stage Retrieval Pipeline
+                </span>
+                <div className="space-y-1.5 font-mono text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-[10px]">1</span>
+                    <span>Dense Vector Search (Amazon Titan Embeddings v2 / Cosine Similarity)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-[10px]">2</span>
+                    <span>Sparse Lexical Search (Okapi BM25 k1=1.5, b=0.75)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 font-bold flex items-center justify-center text-[10px]">3</span>
+                    <span>Reciprocal Rank Fusion (RRF) + Cross-Encoder Joint Scoring</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-background/60 border border-border/50 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground block">Exact Keyword Precision</span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Catches acronyms, SKU codes, and rare terms that pure dense embeddings miss.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-background/60 border border-border/50 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground block">Hallucination Defense</span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Cross-Encoder re-ranks top chunks to compress prompt context and prune noise.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-blue-400 block mb-0.5">Active RAG Mode: Hybrid Fusion</span>
+                Citations automatically report <code className="text-accent font-semibold">rerank_score</code> and <code className="text-emerald-400 font-semibold">bm25_score</code> for complete groundedness verification.
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageShell>
