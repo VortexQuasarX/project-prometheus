@@ -1,12 +1,11 @@
-import { motion } from "framer-motion";
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Shield, Save, FileClock, SlidersHorizontal, ToggleRight, XCircle, Sparkles, Zap, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Shield, Save, FileClock, SlidersHorizontal, ToggleRight, XCircle } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, ErrorState, Input, Label, Select, Skeleton, statusTone, Badge } from "@/components/ui";
-import { getAudit, getPolicies, putPolicies, getTraces } from "@/lib/api";
+import { getAudit, getPolicies, putPolicies } from "@/lib/api";
 import type { KillSwitchMode, Policy } from "@/lib/types";
 import { formatTime } from "@/lib/utils";
 
@@ -34,73 +33,29 @@ export default function PoliciesPage() {
   const audit = useQuery({ queryKey: ["audit"], queryFn: () => getAudit(50), retry: 0 });
   const [draft, setDraft] = useState<Policy | null>(null);
   const [reason, setReason] = useState("policy update from UI");
-  const [simulation, setSimulation] = useState<{
-    projectedSavingUsd: number;
-    latencyDeltaMs: number;
-    safetyScore: number;
-    cacheBoost: number;
-  } | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
 
   useEffect(() => {
     if (policies.data?.policy && draft === null) setDraft({ ...policies.data.policy });
   }, [policies.data, draft]);
 
-  const runSimulation = async () => {
-    if (!draft) return;
-    setIsSimulating(true);
-    try {
-      const traceData = await getTraces(50);
-      const items = traceData?.items ?? [];
-      const totalTraces = items.length || 1;
-      
-      const cacheHits = items.filter(t => t.cache_hit).length;
-      const currentCacheRate = Math.round((cacheHits / totalTraces) * 100);
-
-      let saving = 0;
-      let latency = 0;
-      let safety = draft.pii_masking_enabled && draft.prompt_injection_detection_enabled ? 98 : 88;
-      let cacheBoost = draft.require_cache_check ? Math.max(18, currentCacheRate + 15) : 0;
-
-      const totalTraceCost = items.reduce((acc, t) => acc + (t.cost_usd || 0), 0);
-      if (draft.require_cache_check) {
-        saving += totalTraceCost > 0 ? (totalTraceCost * 0.4 * 30) : 24.5;
-        latency -= 45;
-      }
-      if (Number(draft.daily_budget_usd) < Number(policies.data?.policy.daily_budget_usd ?? 2.0)) {
-        saving += (Number(policies.data?.policy.daily_budget_usd ?? 2.0) - Number(draft.daily_budget_usd)) * 15;
-      }
-      if (draft.pii_masking_enabled) latency += 6;
-      if (draft.prompt_injection_detection_enabled) latency += 8;
-
-      setSimulation({
-        projectedSavingUsd: Number(Math.max(12.5, saving).toFixed(2)),
-        latencyDeltaMs: latency,
-        safetyScore: Math.min(99, safety),
-        cacheBoost: Math.min(96, cacheBoost)
-      });
-      toast.success(`Policy impact modeled across ${totalTraces} production traces`);
-    } catch {
-      toast.error("Failed to model policy impact");
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
   const save = useMutation({
-    mutationFn: () => putPolicies(draft as Policy, reason),
-    onSuccess: () => {
-      toast.success("Policy saved — change is audited and cache entries invalidated.");
-      setDraft(null);
-      setSimulation(null);
+    mutationFn: () => putPolicies(draft!, reason),
+    onSuccess: (data) => {
+      toast.success(`Policy updated to version ${data.policy_version}`);
+      setDraft({ ...data.policy });
       void queryClient.invalidateQueries({ queryKey: ["policies"] });
       void queryClient.invalidateQueries({ queryKey: ["audit"] });
+      void queryClient.invalidateQueries({ queryKey: ["budget"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const lastPolicyChange = (audit.data?.items ?? []).find((e) => e.action === "policy.updated");
-  const dirty = policies.data?.policy && draft ? JSON.stringify(draft) !== JSON.stringify(policies.data.policy) : false;
+  const dirty = Boolean(
+    draft &&
+    policies.data?.policy &&
+    JSON.stringify(draft) !== JSON.stringify(policies.data.policy)
+  );
 
   return (
     <PageShell>
@@ -121,17 +76,7 @@ export default function PoliciesPage() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={runSimulation} 
-                    disabled={isSimulating}
-                    className="gap-1.5 border-accent/30 text-accent hover:bg-accent/10"
-                  >
-                    <Sparkles size={14} className={isSimulating ? "animate-spin" : ""} />
-                    {isSimulating ? "Simulating..." : "Simulate Impact"}
-                  </Button>
-                  {dirty && <Button variant="ghost" size="sm" onClick={() => { setDraft({ ...policies.data!.policy }); setSimulation(null); }}>Discard</Button>}
+                  {dirty && <Button variant="ghost" size="sm" onClick={() => setDraft({ ...policies.data!.policy })}>Discard</Button>}
                   <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()} className="gap-2 shadow-lg">
                     <Save size={16} /> {save.isPending ? "Committing..." : "Commit Policy"}
                   </Button>
@@ -139,39 +84,6 @@ export default function PoliciesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-8 pt-6">
-              
-              {/* Dry Run Simulation Banner */}
-              {simulation && (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-accent/10 via-purple-500/10 to-emerald-500/10 border border-accent/30 animate-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={16} className="text-accent" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-foreground">Policy Dry-Run Impact Projection</span>
-                    </div>
-                    <Badge tone="green" className="text-[10px]">Verified Simulation</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    <div className="bg-background/60 p-2.5 rounded-xl border border-border/50">
-                      <p className="text-[10px] text-muted-foreground font-semibold">Est. Monthly Savings</p>
-                      <p className="font-mono text-sm font-bold text-emerald-500 mt-0.5">+${simulation.projectedSavingUsd.toFixed(2)}/mo</p>
-                    </div>
-                    <div className="bg-background/60 p-2.5 rounded-xl border border-border/50">
-                      <p className="text-[10px] text-muted-foreground font-semibold">Latency Impact</p>
-                      <p className="font-mono text-sm font-bold text-foreground mt-0.5">
-                        {simulation.latencyDeltaMs <= 0 ? `${simulation.latencyDeltaMs}ms (faster)` : `+${simulation.latencyDeltaMs}ms`}
-                      </p>
-                    </div>
-                    <div className="bg-background/60 p-2.5 rounded-xl border border-border/50">
-                      <p className="text-[10px] text-muted-foreground font-semibold">Safety Compliance</p>
-                      <p className="font-mono text-sm font-bold text-accent mt-0.5">{simulation.safetyScore}%</p>
-                    </div>
-                    <div className="bg-background/60 p-2.5 rounded-xl border border-border/50">
-                      <p className="text-[10px] text-muted-foreground font-semibold">Cache Hit Boost</p>
-                      <p className="font-mono text-sm font-bold text-purple-500 mt-0.5">+{simulation.cacheBoost}%</p>
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {/* Toggles */}
               <div>
