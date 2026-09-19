@@ -8,71 +8,64 @@ import { Code2, Terminal, Copy, Check, Sparkles, BookOpen, Layers, Zap, ShieldCh
 import { toast } from "sonner";
 
 const PYTHON_CODE = `import os
-from prometheus import PrometheusClient
+from openai import OpenAI
 
-# Initialize the Prometheus client with drop-in OpenAI parity
-client = PrometheusClient(
+# Initialize standard OpenAI client with Prometheus drop-in proxy
+client = OpenAI(
     api_key=os.environ.get("PROMETHEUS_API_KEY", "prometheus-admin"),
-    base_url="https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1"
+    base_url="https://app.prometheus-ai.workers.dev/api/v1"
 )
 
-# Automated governance, FinOps caching & semantic routing happens automatically
+# Automated governance, FinOps caching & semantic routing happen automatically
 response = client.chat.completions.create(
-    model="auto-router",  # Automatically chooses best model for cost & quality
+    model="mock-small",  # Options: mock-small, mock-large, bedrock-cheap, bedrock-strong
     messages=[
         {"role": "system", "content": "You are a specialized enterprise AI assistant."},
         {"role": "user", "content": "Analyze our AWS CloudWatch bill for anomalies."}
     ],
     temperature=0.2,
-    stream=True  # Real-time token streaming with sub-100ms TTFT
 )
 
-for chunk in response:
-    print(chunk.choices[0].delta.content or "", end="")
+print(response.choices[0].message.content)
 `;
 
-const TYPESCRIPT_CODE = `import { Prometheus } from "@prometheus-ai/sdk";
+const TYPESCRIPT_CODE = `import OpenAI from "openai";
 
-const prometheus = new Prometheus({
+// Initialize official OpenAI TypeScript SDK pointing to Prometheus
+const openai = new OpenAI({
   apiKey: process.env.PROMETHEUS_API_KEY || "prometheus-admin",
-  baseUrl: "https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1"
+  baseURL: "https://app.prometheus-ai.workers.dev/api/v1"
 });
 
 async function main() {
-  // Execute via Prometheus intelligent proxy with micro-dollar caching
-  const completion = await prometheus.chat.completions.create({
-    model: "llama-3.3-70b-instruct:free",
+  // Execute via Prometheus intelligent proxy with micro-dollar caching & guardrails
+  const completion = await openai.chat.completions.create({
+    model: "mock-small",
     messages: [
       { role: "user", content: "Optimize this PostgreSQL query plan for high throughput." }
-    ],
-    governance: {
-      requireCache: true,      // 0-cost vector similarity lookup
-      piiMasking: true,        // Reversible zero-trust entity tokenization
-      injectionDefense: true   // Pre-flight heuristic prompt injection guard
-    }
+    ]
   });
 
   console.log("Response:", completion.choices[0].message.content);
-  console.log("Telemetry:", completion._telemetry); // Latency, Cost, Judge Score
 }
 
 main();
 `;
 
-const CURL_CODE = `curl -X POST https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1/chat \\
+const CURL_CODE = `curl -X POST https://app.prometheus-ai.workers.dev/api/v1/chat \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: prometheus-admin" \\
   -d '{
     "query": "What are the primary cost drivers in modern agentic architectures?",
-    "model": "deepseek-r1:free"
+    "model": "mock-small"
   }'`;
 
 const CLI_CMDS = [
-  { cmd: "prometheus init", desc: "Initialize local project configuration and link API keys." },
-  { cmd: "prometheus test --arena", desc: "Run a head-to-head dual-model benchmark from terminal." },
-  { cmd: "prometheus traces --tail -n 20", desc: "Stream live production request traces in real-time." },
-  { cmd: "prometheus kill-switch --engage", desc: "Emergency circuit-breaker to halt all LLM egress traffic." },
-  { cmd: "prometheus redteam --fuzz-all", desc: "Execute automated OWASP Top 10 jailbreak fuzzing." }
+  { cmd: "curl https://app.prometheus-ai.workers.dev/api/v1/health", desc: "Check live proxy health and active providers." },
+  { cmd: "curl https://app.prometheus-ai.workers.dev/api/v1/traces", desc: "Retrieve live production request audit traces." },
+  { cmd: "curl https://app.prometheus-ai.workers.dev/api/v1/policies", desc: "Inspect active governance policies and token budgets." },
+  { cmd: "curl -X POST https://app.prometheus-ai.workers.dev/api/v1/kafka/produce-test", desc: "Dispatch telemetry test event through the event pipeline." },
+  { cmd: "curl https://app.prometheus-ai.workers.dev/api/v1/finetuning/stats", desc: "Inspect curated golden dataset stats for QLoRA fine-tuning." }
 ];
 
 export default function DevelopersPage() {
@@ -174,30 +167,30 @@ export default function DevelopersPage() {
               </CardHeader>
               <CardContent className="p-4 space-y-3">
                 <div className="p-2.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Python Package</span>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Python (OpenAI SDK)</span>
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <code>pip install prometheus-ai</code>
-                    <button onClick={() => { navigator.clipboard.writeText("pip install prometheus-ai"); toast.success("Copied"); }} className="text-muted-foreground hover:text-foreground">
+                    <code>pip install openai</code>
+                    <button onClick={() => { navigator.clipboard.writeText("pip install openai"); toast.success("Copied"); }} className="text-muted-foreground hover:text-foreground">
                       <Copy size={12} />
                     </button>
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Node.js Package</span>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Node.js (OpenAI SDK)</span>
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <code>npm install @prometheus-ai/sdk</code>
-                    <button onClick={() => { navigator.clipboard.writeText("npm install @prometheus-ai/sdk"); toast.success("Copied"); }} className="text-muted-foreground hover:text-foreground">
+                    <code>npm install openai</code>
+                    <button onClick={() => { navigator.clipboard.writeText("npm install openai"); toast.success("Copied"); }} className="text-muted-foreground hover:text-foreground">
                       <Copy size={12} />
                     </button>
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-muted/20 border border-border/50 space-y-1">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Global CLI</span>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Direct REST / cURL</span>
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <code>brew install prometheus-cli</code>
-                    <button onClick={() => { navigator.clipboard.writeText("brew install prometheus-cli"); toast.success("Copied"); }} className="text-muted-foreground hover:text-foreground">
+                    <code className="truncate max-w-[210px]">curl .../api/v1/chat</code>
+                    <button onClick={() => { navigator.clipboard.writeText("curl -X POST https://app.prometheus-ai.workers.dev/api/v1/chat -H \"Content-Type: application/json\" -H \"X-API-Key: prometheus-admin\" -d '{\"query\":\"Hello\"}'"); toast.success("Copied cURL command"); }} className="text-muted-foreground hover:text-foreground">
                       <Copy size={12} />
                     </button>
                   </div>
@@ -216,7 +209,7 @@ export default function DevelopersPage() {
                   Prometheus acts as an <strong>OpenAI-compatible reverse proxy</strong>.
                 </p>
                 <p>
-                  Simply swap your API base URL to Prometheus to instantly gain multi-model routing, FinOps semantic caching, and real-time guardrails with zero application refactoring.
+                  Simply set your base URL to Prometheus in the standard official OpenAI SDK to instantly gain multi-model routing, FinOps semantic caching, and real-time guardrails with zero application refactoring.
                 </p>
               </CardContent>
             </Card>
@@ -227,9 +220,9 @@ export default function DevelopersPage() {
         <Card>
           <CardHeader className="border-b border-border/50 bg-muted/10 pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Terminal size={16} className="text-accent" /> Prometheus CLI Command Reference
+              <Terminal size={16} className="text-accent" /> DevOps &amp; Automation Command Reference
             </CardTitle>
-            <CardDescription>Command-line interface for engineers, DevOps, and automation pipelines</CardDescription>
+            <CardDescription>Direct API automation and telemetry verification commands</CardDescription>
           </CardHeader>
           <CardContent className="p-0 divide-y divide-border/50">
             {CLI_CMDS.map((c, i) => (

@@ -1,32 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { MessageSquare, X, Send, Sparkles, BrainCircuit } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { MessageSquare, X, Send, Sparkles, BrainCircuit, Zap } from "lucide-react";
 import { Button, Card, CardHeader, CardTitle, CardContent, Textarea } from "@/components/ui";
+import { postChat } from "@/lib/api";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  model?: string;
+  latency_ms?: number;
+  cost_usd?: number;
+  cache_hit?: boolean;
+}
 
 export function Copilot() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [chat, setChat] = useState<{ role: string; content: string }[]>([
+  const [chat, setChat] = useState<ChatMessage[]>([
     { role: "assistant", content: "I am Prometheus, your AI FinOps and Governance Co-pilot. Ask me about your spend, latency anomalies, or traffic." }
   ]);
   const [isThinking, setIsThinking] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (!query.trim()) return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [chat, isOpen]);
+
+  const handleSend = async () => {
+    const trimmed = query.trim();
+    if (!trimmed || isThinking) return;
     
-    setChat(prev => [...prev, { role: "user", content: query }]);
+    setChat(prev => [...prev, { role: "user", content: trimmed }]);
     setQuery("");
     setIsThinking(true);
 
-    // Simulate backend response
-    setTimeout(() => {
+    try {
+      const res = await postChat({ query: trimmed });
       setChat(prev => [...prev, { 
         role: "assistant", 
-        content: "Based on the latest telemetry, the p99 latency spike between 2:00 AM and 4:00 AM was caused by an autonomous script making 5,000 highly-complex reasoning requests to `us-east-1`." 
+        content: res.answer || "I received your request, but no text was returned.",
+        model: res.model,
+        latency_ms: res.latency_ms,
+        cost_usd: res.estimated_cost_usd,
+        cache_hit: res.cache_hit,
       }]);
+    } catch (err: any) {
+      setChat(prev => [...prev, { 
+        role: "assistant", 
+        content: `Error contacting Prometheus engine: ${err.message || "Failed to reach AI service."}` 
+      }]);
+    } finally {
       setIsThinking(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -53,14 +85,29 @@ export function Copilot() {
           
           <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
             {chat.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+              <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
                   msg.role === 'user' 
                     ? 'bg-accent text-white' 
                     : 'bg-muted/50 border border-border/50 text-foreground'
                 }`}>
                   {msg.content}
                 </div>
+                {msg.role === 'assistant' && msg.model && (
+                  <div className="flex items-center gap-2 mt-1 px-1 text-[10px] text-muted-foreground font-mono">
+                    <span>{msg.model}</span>
+                    <span>•</span>
+                    <span>{msg.latency_ms}ms</span>
+                    {msg.cache_hit && (
+                      <>
+                        <span>•</span>
+                        <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
+                          <Zap size={10} /> Cache Hit
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             {isThinking && (
@@ -72,6 +119,7 @@ export function Copilot() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </CardContent>
 
           <div className="p-3 border-t border-border/50 bg-muted/10">
