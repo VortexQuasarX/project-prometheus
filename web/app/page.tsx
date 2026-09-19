@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useQuery } from "@tanstack/react-query";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTheme } from "next-themes";
@@ -8,7 +8,7 @@ import { PageShell } from "@/components/page-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Progress, Badge, Skeleton, EmptyState, statusTone, Table, Th, Td, AnimatedCounter } from "@/components/ui";
 import { formatMs, formatPercent, formatUsd } from "@/lib/utils";
 import Link from "next/link";
-import { getMetrics, getCostReport, getCacheStats, getBudget, getPendingActions } from "@/lib/api";
+import { getMetrics, getCostReport, getCacheStats, getBudget, getPendingActions, getAgentRuns } from "@/lib/api";
 
 function MetricCard({ title, value, sub, icon, variants, label, className }: any) {
   return (
@@ -35,6 +35,9 @@ export default function DashboardPage() {
   const cache = useQuery({ queryKey: ["cache-stats"], queryFn: getCacheStats, refetchInterval: 30000 });
   const budget = useQuery({ queryKey: ["budget"], queryFn: getBudget, refetchInterval: 30000 });
   const pending = useQuery({ queryKey: ["pending-actions"], queryFn: getPendingActions, refetchInterval: 30000 });
+  const agentRuns = useQuery({ queryKey: ["agent-runs"], queryFn: () => getAgentRuns(), refetchInterval: 30000 });
+
+  const activeAgentCount = Math.max(1, (agentRuns.data?.items ?? []).filter((r: any) => r.status === "running" || r.status === "pending" || r.status === "verified").length);
 
   const dailyBudget = budget.data?.daily_budget_usd ?? 0;
   const dailySpend = budget.data?.daily_spend_usd ?? 0;
@@ -93,8 +96,8 @@ export default function DashboardPage() {
           <MetricCard 
             variants={{hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }}}
             label="Active Agents" 
-            value={<AnimatedCounter value={4} />} 
-            sub="Governance loop"
+            value={<AnimatedCounter value={activeAgentCount} />} 
+            sub="FinOps & Red Team"
             icon={<Bot size={18} />}
           />
         </div>

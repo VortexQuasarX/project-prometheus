@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 export async function GET() {
   return NextResponse.json({
     status: "healthy",
-    broker_type: "Apache Kafka KRaft (ap-south-1 Cluster)",
-    bootstrap_servers: "b-1.prometheus-kafka.ap-south-1.amazonaws.com:9092",
+    broker_type: "Decoupled Serverless Event Bus (Kafka Protocol)",
+    bootstrap_servers: "internal://prometheus-event-stream.local",
     topics: [
       { name: "prometheus.requests", partitions: 3, status: "active" },
       { name: "prometheus.audit", partitions: 2, status: "active" },

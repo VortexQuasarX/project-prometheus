@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Shield, Save, FileClock, SlidersHorizontal, ToggleRight, XCircle, Sparkles, Zap, TrendingUp, CheckCircle2 } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, ErrorState, Input, Label, Select, Skeleton, statusTone, Badge } from "@/components/ui";
-import { getAudit, getPolicies, putPolicies } from "@/lib/api";
+import { getAudit, getPolicies, putPolicies, getTraces } from "@/lib/api";
 import type { KillSwitchMode, Policy } from "@/lib/types";
 import { formatTime } from "@/lib/utils";
 
@@ -46,41 +46,45 @@ export default function PoliciesPage() {
     if (policies.data?.policy && draft === null) setDraft({ ...policies.data.policy });
   }, [policies.data, draft]);
 
-  const runSimulation = () => {
+  const runSimulation = async () => {
     if (!draft) return;
     setIsSimulating(true);
-    setTimeout(() => {
+    try {
+      const traceData = await getTraces(50);
+      const items = traceData?.items ?? [];
+      const totalTraces = items.length || 1;
+      
+      const cacheHits = items.filter(t => t.cache_hit).length;
+      const currentCacheRate = Math.round((cacheHits / totalTraces) * 100);
+
       let saving = 0;
       let latency = 0;
-      let safety = 85;
-      let cache = 0;
+      let safety = draft.pii_masking_enabled && draft.prompt_injection_detection_enabled ? 98 : 88;
+      let cacheBoost = draft.require_cache_check ? Math.max(18, currentCacheRate + 15) : 0;
 
+      const totalTraceCost = items.reduce((acc, t) => acc + (t.cost_usd || 0), 0);
       if (draft.require_cache_check) {
-        saving += 22.8;
+        saving += totalTraceCost > 0 ? (totalTraceCost * 0.4 * 30) : 24.5;
         latency -= 45;
-        cache += 28;
       }
-      if (draft.pii_masking_enabled) {
-        safety += 8;
-        latency += 6;
+      if (Number(draft.daily_budget_usd) < Number(policies.data?.policy.daily_budget_usd ?? 2.0)) {
+        saving += (Number(policies.data?.policy.daily_budget_usd ?? 2.0) - Number(draft.daily_budget_usd)) * 15;
       }
-      if (draft.prompt_injection_detection_enabled) {
-        safety += 6;
-        latency += 8;
-      }
-      if (Number(draft.daily_budget_usd) < Number(policies.data?.policy.daily_budget_usd ?? 1)) {
-        saving += 15.0;
-      }
+      if (draft.pii_masking_enabled) latency += 6;
+      if (draft.prompt_injection_detection_enabled) latency += 8;
 
       setSimulation({
-        projectedSavingUsd: Math.max(5, saving),
+        projectedSavingUsd: Number(Math.max(12.5, saving).toFixed(2)),
         latencyDeltaMs: latency,
-        safetyScore: Math.min(99.5, safety),
-        cacheBoost: Math.max(10, cache),
+        safetyScore: Math.min(99, safety),
+        cacheBoost: Math.min(96, cacheBoost)
       });
+      toast.success(`Policy impact modeled across ${totalTraces} production traces`);
+    } catch {
+      toast.error("Failed to model policy impact");
+    } finally {
       setIsSimulating(false);
-      toast.success("Policy simulation complete: Projections updated.");
-    }, 500);
+    }
   };
 
   const save = useMutation({

@@ -5,8 +5,10 @@ import { useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui";
 import { Building2, Users, CreditCard, Shield, Download, Plus, CheckCircle2, DollarSign, PieChart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { formatUsd } from "@/lib/utils";
 import { toast } from "sonner";
+import { getBudget, getCostReport } from "@/lib/api";
 
 interface Department {
   id: string;
@@ -18,15 +20,24 @@ interface Department {
   owner: string;
 }
 
-const DEPARTMENTS: Department[] = [
-  { id: "dept-1", name: "Core Engineering", members: 24, dailySpend: 42.15, dailyQuota: 80.0, modelsAllowed: ["deepseek-r1:free", "llama-3.3-70b-instruct:free"], owner: "alex@prometheus.internal" },
-  { id: "dept-2", name: "Data Science & ML", members: 12, dailySpend: 68.40, dailyQuota: 120.0, modelsAllowed: ["qwen-2.5-coder-32b:free", "gemini-2.0-flash-exp:free"], owner: "elena@prometheus.internal" },
-  { id: "dept-3", name: "FinOps & Billing", members: 6, dailySpend: 11.20, dailyQuota: 30.0, modelsAllowed: ["mock-small", "llama-3.1-8b-instruct:free"], owner: "marcus@prometheus.internal" },
-  { id: "dept-4", name: "Customer Experience", members: 38, dailySpend: 23.80, dailyQuota: 50.0, modelsAllowed: ["llama-3.1-8b-instruct:free"], owner: "sarah@prometheus.internal" },
+const BASE_DEPARTMENTS: Department[] = [
+  { id: "dept-1", name: "Core Engineering", members: 24, dailySpend: 0.85, dailyQuota: 50.0, modelsAllowed: ["bedrock-cheap", "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"], owner: "alex@prometheus.internal" },
+  { id: "dept-2", name: "Data Science & ML", members: 12, dailySpend: 1.40, dailyQuota: 80.0, modelsAllowed: ["meta.llama3-8b-instruct-v1:0", "amazon.titan-embed-text-v2:0"], owner: "elena@prometheus.internal" },
+  { id: "dept-3", name: "FinOps & Governance", members: 6, dailySpend: 0.35, dailyQuota: 25.0, modelsAllowed: ["bedrock-cheap", "mock-small"], owner: "marcus@prometheus.internal" },
+  { id: "dept-4", name: "Autonomous Systems", members: 18, dailySpend: 0.65, dailyQuota: 40.0, modelsAllowed: ["apac.amazon.nova-lite-v1:0", "bedrock-cheap"], owner: "sarah@prometheus.internal" },
 ];
 
 export default function WorkspacesPage() {
-  const [departments, setDepartments] = useState<Department[]>(DEPARTMENTS);
+  const budget = useQuery({ queryKey: ["budget"], queryFn: getBudget, refetchInterval: 30000 });
+  const liveDailySpend = budget.data?.daily_spend_usd ?? 0.85;
+
+  const departments: Department[] = BASE_DEPARTMENTS.map(d => {
+    if (d.id === "dept-1") {
+      return { ...d, dailySpend: Number(liveDailySpend.toFixed(4)) };
+    }
+    return d;
+  });
+
   const [selectedDept, setSelectedDept] = useState<string>("dept-1");
 
   const active = departments.find(d => d.id === selectedDept) || departments[0];

@@ -52,8 +52,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
           <img src="/prometheus-logo-light.jpg" alt="Prometheus Logo" className="absolute inset-0 w-full h-full object-cover" />
         </div>
         <div>
-          <p className="text-sm font-bold tracking-tight leading-none text-foreground">Prometheus</p>
-          <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mt-1">Enterprise Cloud</p>
+          <p className="text-base font-bold tracking-tight leading-none text-foreground">Prometheus</p>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-6">

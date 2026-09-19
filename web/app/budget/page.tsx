@@ -28,12 +28,33 @@ export default function BudgetPage() {
     toast.success("Webhook alert rule saved successfully.");
   };
 
-  const testWebhook = () => {
+  const testWebhook = async () => {
+    if (!webhookUrl.trim()) {
+      toast.info("Enter a webhook URL (e.g., Slack incoming webhook or webhook.site URL) to test.");
+      return;
+    }
     setIsTestingWebhook(true);
-    setTimeout(() => {
+    try {
+      const payload = {
+        text: `🚨 [Prometheus FinOps Alert] Daily budget threshold alert: Spend is at ${spendPct.toFixed(1)}% ($${dailySpend.toFixed(2)} of $${dailyBudget.toFixed(2)}).`,
+        threshold_percent: Number(threshold),
+        timestamp: new Date().toISOString(),
+        service: "Project Prometheus AI Control Plane",
+      };
+
+      await fetch(webhookUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      toast.success(`Live webhook alert payload dispatched to: ${webhookUrl}`);
+    } catch (err: any) {
+      toast.error(`Failed to dispatch alert: ${err.message || "Network error"}`);
+    } finally {
       setIsTestingWebhook(false);
-      toast.success(`Test alert payload sent to: ${webhookUrl || "Default FinOps Slack Channel"}`);
-    }, 500);
+    }
   };
 
   const apply = useMutation({
