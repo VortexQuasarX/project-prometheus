@@ -47,12 +47,13 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const logoSrc = mounted && resolvedTheme === "dark" ? "/prometheus-logo.jpg" : "/prometheus-logo-light.jpg";
+  const isDark = !mounted || resolvedTheme === "dark";
+  const logoSrc = isDark ? "/prometheus-logo.jpg" : "/prometheus-logo-light.jpg";
   
   const content = (
     <>
       <div className="flex items-center gap-3 border-b border-border/40 px-6 py-5">
-        <div className="flex h-10 w-10 relative rounded-xl overflow-hidden shadow-sm border border-border">
+        <div className={cn("flex h-10 w-10 relative rounded-xl overflow-hidden shadow-sm border border-border transition-colors duration-200", isDark ? "bg-[#030712]" : "bg-white")}>
           <img src={logoSrc} alt="Prometheus Logo" className="absolute inset-0 w-full h-full object-cover" />
         </div>
         <div>
