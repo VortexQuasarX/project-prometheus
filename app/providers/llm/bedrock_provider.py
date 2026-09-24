@@ -68,8 +68,9 @@ class BedrockProvider(LLMProvider):
         temperature: float = 0.3,
     ) -> LLMResponse:
         self._ensure_mode()
-        client = self._ensure_client()
         model_id = self._resolve_model_id(model)
+        target_region = self._resolve_region_for_model(model_id)
+        client = self._ensure_client(target_region)
 
         started = time.perf_counter()
         
@@ -172,9 +173,23 @@ class BedrockProvider(LLMProvider):
                 "and configure AWS credentials to enable the production path."
             )
 
-    def _ensure_client(self) -> Any:
-        if self._client is not None:
-            return self._client
+    def _resolve_region_for_model(self, model_id: str) -> str:
+        """Dynamically resolve the AWS region for cross-region inference models."""
+        mid_lower = (model_id or "").lower()
+        if mid_lower.startswith("us.") or "palmyra" in mid_lower or "mistral-small" in mid_lower or "nova-2-lite" in mid_lower:
+            return "us-east-1"
+        if "2407" in mid_lower or "llama3-1-8b" in mid_lower:
+            return "us-west-2"
+        if "next" in mid_lower:
+            return "ap-southeast-2"
+        return self._region
+
+    def _ensure_client(self, region: str | None = None) -> Any:
+        target_region = region or self._region
+        if not hasattr(self, "_clients"):
+            self._clients: dict[str, Any] = {}
+        if target_region in self._clients:
+            return self._clients[target_region]
         try:
             import boto3
             from botocore.config import Config
@@ -189,12 +204,13 @@ class BedrockProvider(LLMProvider):
             retries={"max_attempts": 0, "mode": "standard"},  # we own the retries
         )
         try:
-            self._client = boto3.client(
-                "bedrock-runtime", region_name=self._region, config=config
+            client = boto3.client(
+                "bedrock-runtime", region_name=target_region, config=config
             )
+            self._clients[target_region] = client
+            return client
         except Exception as exc:  # noqa: BLE001 - controlled surface
-            raise ProviderUnavailableError(f"Failed to initialize the Bedrock client: {exc}") from exc
-        return self._client
+            raise ProviderUnavailableError(f"Failed to initialize the Bedrock client for {target_region}: {exc}") from exc
 
     def _resolve_model_id(self, model: str) -> str:
         model_clean = (model or "").strip()
@@ -202,7 +218,7 @@ class BedrockProvider(LLMProvider):
         # Pass through any model containing vendor dots/colons or known provider names
         known_prefixes = (
             "amazon", "anthropic", "apac", "global", "meta", "google",
-            "deepseek", "mistral", "qwen", "nvidia", "zai", "moonshot", "titan"
+            "deepseek", "mistral", "qwen", "nvidia", "zai", "moonshot", "titan", "us", "writer", "openai"
         )
         if model_clean and ("." in model_clean or ":" in model_clean or any(p in model_lower for p in known_prefixes)):
             return model_clean

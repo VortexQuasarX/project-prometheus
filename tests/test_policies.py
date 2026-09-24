@@ -27,7 +27,7 @@ def test_get_default_policy(client, admin_headers):
         assert field in policy, f"missing {field}"
     assert policy["daily_budget_usd"] == 2.0
     assert policy["request_budget_usd"] == 0.05
-    assert policy["allowed_models"] == ["mock-small", "mock-large"]
+    assert policy["allowed_models"] == DEFAULT_POLICY["allowed_models"]
     assert policy["kill_switch_mode"] == "off"
     assert body["policy_version"] >= 1
 

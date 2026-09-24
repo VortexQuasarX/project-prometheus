@@ -21,10 +21,10 @@ interface Department {
 }
 
 const BASE_DEPARTMENTS: Department[] = [
-  { id: "dept-1", name: "Core Engineering", members: 24, dailySpend: 0.85, dailyQuota: 50.0, modelsAllowed: ["bedrock-cheap", "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"], owner: "alex@prometheus.internal" },
-  { id: "dept-2", name: "Data Science & ML", members: 12, dailySpend: 1.40, dailyQuota: 80.0, modelsAllowed: ["meta.llama3-8b-instruct-v1:0", "amazon.titan-embed-text-v2:0"], owner: "elena@prometheus.internal" },
-  { id: "dept-3", name: "FinOps & Governance", members: 6, dailySpend: 0.35, dailyQuota: 25.0, modelsAllowed: ["bedrock-cheap", "mock-small"], owner: "marcus@prometheus.internal" },
-  { id: "dept-4", name: "Autonomous Systems", members: 18, dailySpend: 0.65, dailyQuota: 40.0, modelsAllowed: ["apac.amazon.nova-lite-v1:0", "bedrock-cheap"], owner: "sarah@prometheus.internal" },
+  { id: "dept-1", name: "Core Engineering", members: 24, dailySpend: 0.85, dailyQuota: 50.0, modelsAllowed: ["bedrock-cheap", "qwen.qwen3-coder-480b-a35b-v1:0"], owner: "alex@prometheus.internal" },
+  { id: "dept-2", name: "Data Science & ML", members: 12, dailySpend: 1.40, dailyQuota: 80.0, modelsAllowed: ["meta.llama3-8b-instruct-v1:0", "us.meta.llama3-3-70b-instruct-v1:0"], owner: "elena@prometheus.internal" },
+  { id: "dept-3", name: "FinOps & Governance", members: 6, dailySpend: 0.35, dailyQuota: 25.0, modelsAllowed: ["apac.amazon.nova-micro-v1:0", "mock-small"], owner: "marcus@prometheus.internal" },
+  { id: "dept-4", name: "Autonomous Systems", members: 18, dailySpend: 0.65, dailyQuota: 40.0, modelsAllowed: ["apac.amazon.nova-lite-v1:0", "us.deepseek.r1-v1:0"], owner: "sarah@prometheus.internal" },
 ];
 
 export default function WorkspacesPage() {

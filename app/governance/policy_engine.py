@@ -19,13 +19,69 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-# Spec's exact default policy JSON (SPEC Section 8) + expensive_models (B8).
+DEFAULT_ALLOWED_MODELS: list[str] = [
+    "apac.amazon.nova-lite-v1:0",
+    "apac.amazon.nova-micro-v1:0",
+    "apac.amazon.nova-pro-v1:0",
+    "bedrock-cheap",
+    "bedrock-strong",
+    "deepseek.v3-v1:0",
+    "deepseek.v3.2",
+    "global.amazon.nova-2-lite-v1:0",
+    "google.gemma-3-12b-it",
+    "google.gemma-3-27b-it",
+    "google.gemma-3-4b-it",
+    "meta.llama3-70b-instruct-v1:0",
+    "meta.llama3-8b-instruct-v1:0",
+    "minimax.minimax-m2",
+    "minimax.minimax-m2.1",
+    "minimax.minimax-m2.5",
+    "mistral.devstral-2-123b",
+    "mistral.magistral-small-2509",
+    "mistral.ministral-3-14b-instruct",
+    "mistral.ministral-3-3b-instruct",
+    "mistral.ministral-3-8b-instruct",
+    "mistral.mistral-7b-instruct-v0:2",
+    "mistral.mistral-large-2402-v1:0",
+    "mistral.mistral-large-2407-v1:0",
+    "mistral.mistral-large-3-675b-instruct",
+    "mistral.mistral-small-2402-v1:0",
+    "mistral.mixtral-8x7b-instruct-v0:1",
+    "mistral.voxtral-mini-3b-2507",
+    "mistral.voxtral-small-24b-2507",
+    "moonshot.kimi-k2-thinking",
+    "moonshotai.kimi-k2.5",
+    "nvidia.nemotron-nano-12b-v2",
+    "nvidia.nemotron-nano-3-30b",
+    "nvidia.nemotron-nano-9b-v2",
+    "openai.gpt-oss-120b-1:0",
+    "openai.gpt-oss-20b-1:0",
+    "openai.gpt-oss-safeguard-120b",
+    "openai.gpt-oss-safeguard-20b",
+    "qwen.qwen3-235b-a22b-2507-v1:0",
+    "qwen.qwen3-32b-v1:0",
+    "qwen.qwen3-coder-30b-a3b-v1:0",
+    "qwen.qwen3-coder-480b-a35b-v1:0",
+    "qwen.qwen3-coder-next",
+    "qwen.qwen3-next-80b-a3b",
+    "qwen.qwen3-vl-235b-a22b",
+    "us.deepseek.r1-v1:0",
+    "us.meta.llama3-1-70b-instruct-v1:0",
+    "us.meta.llama3-3-70b-instruct-v1:0",
+    "writer.palmyra-vision-7b",
+    "zai.glm-4.7",
+    "zai.glm-4.7-flash",
+    "zai.glm-5",
+    "mock-small",
+    "mock-large",
+]
+
 DEFAULT_POLICY: dict[str, Any] = {
     "daily_budget_usd": 2.0,
     "request_budget_usd": 0.05,
     "max_input_tokens": 1000,
     "max_output_tokens": 500,
-    "allowed_models": ["mock-small", "mock-large"],
+    "allowed_models": DEFAULT_ALLOWED_MODELS,
     "expensive_model_limit_per_day": 20,
     "require_cache_check": True,
     "require_rag": True,
@@ -35,12 +91,22 @@ DEFAULT_POLICY: dict[str, Any] = {
     "prompt_injection_detection_enabled": True,
     "rate_limit_per_minute": 30,
     "kill_switch_mode": "off",
-    "expensive_models": ["mock-large", "bedrock-strong"],
+    "expensive_models": [
+        "mock-large",
+        "bedrock-strong",
+        "us.deepseek.r1-v1:0",
+        "us.meta.llama3-3-70b-instruct-v1:0",
+        "qwen.qwen3-coder-480b-a35b-v1:0",
+        "apac.amazon.nova-pro-v1:0",
+        "meta.llama3-70b-instruct-v1:0",
+        "mistral.mistral-large-3-675b-instruct",
+        "google.gemma-3-27b-it",
+    ],
 }
 
 KILL_SWITCH_MODES = ("off", "cache_only", "cheap_only", "block_all")
 
-_MODEL_CATALOG = ("mock-small", "mock-large", "bedrock-cheap", "bedrock-strong")
+_MODEL_CATALOG = tuple(DEFAULT_ALLOWED_MODELS)
 
 
 class PolicySchema(BaseModel):

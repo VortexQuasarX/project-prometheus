@@ -18,6 +18,7 @@ from app.core.security import hash_api_key
 from app.db.base import Base
 from app.db.models import ApiKey, Document, Organization, Policy
 from app.db.session import SessionLocal, engine
+from app.governance.policy_engine import DEFAULT_ALLOWED_MODELS
 
 logger = logging.getLogger("prometheus.init_db")
 
@@ -26,8 +27,18 @@ DEFAULT_POLICY: dict[str, Any] = {
     "request_budget_usd": 0.05,
     "max_input_tokens": 1000,
     "max_output_tokens": 500,
-    "allowed_models": ["mock-small", "mock-large"],
-    "expensive_models": ["mock-large", "bedrock-strong"],
+    "allowed_models": DEFAULT_ALLOWED_MODELS,
+    "expensive_models": [
+        "mock-large",
+        "bedrock-strong",
+        "us.deepseek.r1-v1:0",
+        "us.meta.llama3-3-70b-instruct-v1:0",
+        "qwen.qwen3-coder-480b-a35b-v1:0",
+        "apac.amazon.nova-pro-v1:0",
+        "meta.llama3-70b-instruct-v1:0",
+        "mistral.mistral-large-3-675b-instruct",
+        "google.gemma-3-27b-it",
+    ],
     "expensive_model_limit_per_day": 20,
     "require_cache_check": True,
     "require_rag": True,
