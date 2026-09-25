@@ -26,11 +26,16 @@
 Watch the comprehensive video walkthrough demonstrating the Prometheus 12-stage governance engine, multi-region Bedrock routing, FinOps chargeback, real-time Kafka event streaming, and LoRA/QLoRA continuous evaluation.
 
 <div align="center">
-  <video src="assets/final_cut_prometheus.mp4" width="100%" controls="controls">
-    Your browser does not support the video tag.
-  </video>
+  <a href="https://github.com/VortexQuasarX/project-prometheus/blob/main/assets/final_cut_prometheus.mp4">
+    <img src="assets/demo_preview.gif" alt="Project Prometheus Architecture & FinOps Demo Walkthrough" width="100%" style="border-radius: 8px;" />
+  </a>
   <br/>
-  <p><b><a href="assets/final_cut_prometheus.mp4">▶️ Click here to watch / download the full High-Definition Demo Walkthrough video (assets/final_cut_prometheus.mp4)</a></b></p>
+  <p align="center">
+    🎬 <i>Animated live walkthrough preview. Click the preview image or any link below to open the complete video with full sound and playback controls:</i><br/>
+    <b><a href="https://github.com/VortexQuasarX/project-prometheus/blob/main/assets/final_cut_prometheus.mp4">▶️ Watch Full HD Video in GitHub Player (assets/final_cut_prometheus.mp4)</a></b> • 
+    <b><a href="https://github.com/VortexQuasarX/project-prometheus/releases/download/v1.0.0/final_cut_prometheus.mp4">📥 Direct MP4 Download (Release CDN)</a></b> • 
+    <b><a href="https://github.com/VortexQuasarX/project-prometheus/releases/tag/v1.0.0">🏷️ Release v1.0.0</a></b>
+  </p>
 </div>
 
 ### 🧩 Core Platform Components & Console Modules
