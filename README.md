@@ -2,8 +2,8 @@
 
 <div align="center">
 
-[![AWS ap-south-1](https://img.shields.io/badge/AWS-ap--south--1%20(Mumbai)-FF9900?logo=amazon-aws&logoColor=white)](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com)
-[![Status](https://img.shields.io/badge/Status-100%25%20Live%20%26%20Verified-00C853?style=flat-square)](#-live-cloud-deployments)
+[![AWS ap-south-1](https://img.shields.io/badge/AWS-ap--south--1%20(Mumbai)-FF9900?logo=amazon-aws&logoColor=white)](#-zero-idle-cost-cloud-native-infrastructure)
+[![Status](https://img.shields.io/badge/Status-100%25%20Verified%20%26%20Tested-00C853?style=flat-square)](#-key-capabilities)
 [![Compute](https://img.shields.io/badge/Compute-Serverless%20Lambda%20Adapter-FF9900?style=flat-square)](#-zero-idle-cost-cloud-native-infrastructure)
 [![Streaming](https://img.shields.io/badge/Streaming-Apache%20Kafka%20Event%20Bus-231F20?logo=apachekafka&logoColor=white)](#-apache-kafka-distributed-event-streaming-pipeline)
 [![RAG](https://img.shields.io/badge/RAG-Hybrid%20BM25%20%2B%20Cross--Encoder-7928CA?style=flat-square)](#-advanced-hybrid-search--cross-encoder-re-ranking)
@@ -13,32 +13,42 @@
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-14%20Standalone-black?logo=next.js&logoColor=white)](https://nextjs.org)
 
-**An enterprise-grade, real-time AI governance gateway and FinOps control plane that enforces deterministic policy budgets, hybrid dense/sparse semantic caching, PII masking, circuit-breaker kill-switches, Kafka event streaming, and LoRA/QLoRA continuous fine-tuning across 44+ foundation models with $0.00 idle compute costs.**
+**An enterprise-grade, real-time AI governance gateway and FinOps control plane that enforces deterministic policy budgets, hybrid dense/sparse semantic caching, PII masking, circuit-breaker kill-switches, Kafka event streaming, and LoRA/QLoRA continuous fine-tuning across 50+ foundation models with $0.00 idle compute costs.**
 
-[Live Dashboard](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com) • [Developer SDKs](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers) • [Workspaces & Chargeback](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces) • [Multi-Model Arena](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground) • [Live API Gateway](https://w6qubbix87.execute-api.ap-south-1.amazonaws.com) • [LoRA Fine-Tuning Hub](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/evaluations) • [Kafka Event Bus](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/settings)
+[Architecture](#-system-architecture) • [Demo Walkthrough](#-architecture--system-walkthrough-demo) • [Key Capabilities](#-key-capabilities) • [Developer SDKs](#-developer-sdks--client-integration) • [Local Setup](#-local-development--quickstart) • [API Reference](#-api-reference)
 
 </div>
 
 ---
 
-## 🌐 Live Cloud Deployments
+## 🎬 Architecture & System Walkthrough Demo
 
-Prometheus is fully deployed to AWS in the **`ap-south-1` (Mumbai)** region using **44 Terraform resources**. Every layer of the stack is 100% live and runs on real cloud services.
+Watch the comprehensive video walkthrough demonstrating the Prometheus 12-stage governance engine, multi-region Bedrock routing, FinOps chargeback, real-time Kafka event streaming, and LoRA/QLoRA continuous evaluation.
 
-| Interface / Component | Production Endpoint | Architecture & Capabilities |
+<div align="center">
+  <video src="assets/final_cut_prometheus.mp4" width="100%" controls="controls">
+    Your browser does not support the video tag.
+  </video>
+  <br/>
+  <p><b><a href="assets/final_cut_prometheus.mp4">▶️ Click here to watch / download the full High-Definition Demo Walkthrough video (assets/final_cut_prometheus.mp4)</a></b></p>
+</div>
+
+### 🧩 Core Platform Components & Console Modules
+
+| Interface / Component | Route / Target | Architecture & Capabilities |
 |---|---|---|
-| **Web Dashboard** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com) | Next.js 14 Standalone via AWS Lambda Web Adapter |
-| **Developer Portal & SDKs** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/developers) | Drop-in Python & TypeScript SDKs, live cURL & CLI generator |
-| **LoRA Fine-Tuning Hub** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/evaluations`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/evaluations) | Golden trace curation, ChatML/Alpaca exports, HF SFTTrainer scripts |
-| **Kafka Telemetry & Topology** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/settings`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/settings) | Topic partition health, latency probes, Hybrid RAG telemetry |
-| **Multi-Tenant Workspaces** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/workspaces) | Departmental quotas, model whitelists, 1-click CSV chargeback export |
-| **Arena & Playground** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/playground) | Dual-model benchmark split view, real-time SSE streaming, TTFT/TPS |
-| **Traces APM Waterfall** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/traces`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/traces) | Sub-millisecond 12-stage duration Gantt chart with filter pills |
-| **Adversarial Red Team** | [`https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/redteam`](https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/redteam) | Live OWASP Top 10 automated jailbreak fuzzing suite |
-| **API Gateway (HTTP API)** | [`https://w6qubbix87.execute-api.ap-south-1.amazonaws.com`](https://w6qubbix87.execute-api.ap-south-1.amazonaws.com) | Amazon API Gateway HTTP API v2 (CORS enabled) |
-| **Direct Lambda URL** | [`https://n4cmh77bmu7i5ave64bo2bpyqm0gaajy.lambda-url.ap-south-1.on.aws`](https://n4cmh77bmu7i5ave64bo2bpyqm0gaajy.lambda-url.ap-south-1.on.aws) | Container-based Lambda (`prometheus-api`) |
-| **Relational & Vector Store** | `prometheus-db.cf2ie46cw46t.ap-south-1.rds.amazonaws.com:5432` | Amazon RDS PostgreSQL 15.13 + `pgvector` |
-| **Observability** | AWS CloudWatch Real-Time Dashboard | CloudWatch metrics, traces, latency percentiles |
+| **Web Dashboard** | `/` | Next.js 14 Standalone via AWS Lambda Web Adapter |
+| **Developer Portal & SDKs** | `/developers` | Drop-in Python & TypeScript SDKs, live cURL & CLI generator |
+| **LoRA Fine-Tuning Hub** | `/evaluations` | Golden trace curation, ChatML/Alpaca exports, HF SFTTrainer scripts |
+| **Kafka Telemetry & Topology** | `/settings` | Topic partition health, latency probes, Hybrid RAG telemetry |
+| **Multi-Tenant Workspaces** | `/workspaces` | Departmental quotas, model whitelists, 1-click CSV chargeback export |
+| **Arena & Playground** | `/playground` | Dual-model benchmark split view, real-time SSE streaming, TTFT/TPS |
+| **Traces APM Waterfall** | `/traces` | Sub-millisecond 12-stage duration Gantt chart with filter pills |
+| **Adversarial Red Team** | `/redteam` | Live OWASP Top 10 automated jailbreak fuzzing suite |
+| **API Gateway (HTTP API)** | `/api/v1` | Amazon API Gateway HTTP API v2 (CORS enabled) / FastAPI Engine |
+| **Zero-Idle Compute Engine** | Containerized Lambda | Serverless Lambda (`prometheus-api`) with scale-to-zero compute |
+| **Relational & Vector Store** | PostgreSQL 15 + `pgvector` | Amazon RDS PostgreSQL + `pgvector` for semantic caching & embeddings |
+| **Observability & APM** | CloudWatch Metrics & Traces | End-to-end distributed tracing, latency percentiles & alerts |
 
 > **Authentication**: API calls require header `x-api-key: prometheus-admin` (default admin credential).
 
@@ -366,7 +376,7 @@ import os
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1",
+    base_url=os.environ.get("PROMETHEUS_BASE_URL", "http://localhost:8000/api/v1"),
     api_key=os.environ.get("PROMETHEUS_API_KEY", "prometheus-admin")
 )
 
@@ -390,7 +400,7 @@ for chunk in response:
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  baseURL: "https://w6qubbix87.execute-api.ap-south-1.amazonaws.com/api/v1",
+  baseURL: process.env.PROMETHEUS_BASE_URL || "http://localhost:8000/api/v1",
   apiKey: process.env.PROMETHEUS_API_KEY || "prometheus-admin",
 });
 
@@ -570,7 +580,7 @@ This launches:
 
 ### 1. Send Chat Request (`POST /api/v1/chat`)
 ```bash
-curl -X POST "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/chat" \
+curl -X POST "http://localhost:8000/api/v1/chat" \
   -H "Content-Type: application/json" \
   -H "x-api-key: prometheus-admin" \
   -d '{
@@ -581,20 +591,20 @@ curl -X POST "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/cha
 
 ### 2. Query Kafka Broker Telemetry (`GET /api/v1/kafka/status`)
 ```bash
-curl -X GET "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/kafka/status" \
+curl -X GET "http://localhost:8000/api/v1/kafka/status" \
   -H "x-api-key: prometheus-admin"
 ```
 
 ### 3. Export Golden Fine-Tuning Dataset (`GET /api/v1/finetuning/export`)
 ```bash
-curl -X GET "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/finetuning/export?format=chatml&min_score=0.85" \
+curl -X GET "http://localhost:8000/api/v1/finetuning/export?format=chatml&min_score=0.85" \
   -H "x-api-key: prometheus-admin" \
   -o prometheus_chatml.jsonl
 ```
 
 ### 4. Fetch Trace & Audit Trail (`GET /api/v1/traces/{request_id}`)
 ```bash
-curl -X GET "https://4oyzp80sy9.execute-api.ap-south-1.amazonaws.com/api/v1/traces/req_6c3c34ad9c4c4902" \
+curl -X GET "http://localhost:8000/api/v1/traces/req_6c3c34ad9c4c4902" \
   -H "x-api-key: prometheus-admin"
 ```
 
